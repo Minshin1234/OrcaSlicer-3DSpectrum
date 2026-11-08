@@ -411,9 +411,19 @@ The Windows Release FFF target rebuilt. All five focused cases passed, all nine 
 Audited the resolved vendor G-code generated offline by Bambu Studio v02.09.01.70 for the dual 0.4 mm H2D against 3DSpectrum's offline toolpaths. Evaluated the 24 × 12 × 4 mm reference assembly fixture (10 × 12 × 4 mm lower solid and 14 × 12 × 4 mm upper solid) under both standard (`ab`: filaments 1, 2) and reversed (`ba`: filaments 2, 1) slot assignments.
 
 The vendor audit confirmed that:
-1. Tool mapping commands emit `T0 H-1` for filament slot 1 and `T1 H-1` for filament slot 2, with `H-1` signifying static 1:1 hardware nozzle pairing.
+1. The export emits `T0 H-1` for filament slot 1 and `T1 H-1` for filament slot 2. Physical left/right mapping remains open.
 2. The entire model envelope (X = [163.21, 186.79], Y = [154.21, 165.79]) and the prime tower footprint (X = [224.95, 249.30], Y = [273.46, 296.34]) stay strictly inside the shared reach of both hotends (`X = [25, 325], Y = [0, 320]`).
-3. Slicing with active prime tower requires 491.06 mm of purge extrusion across 20 layers for 393.71 mm of model extrusion (a 124.7% purge overhead).
+3. The first position-only estimate grouped tower extrusion with purge. The P2-016 audit below supersedes those figures with feature-tagged measurements.
 4. 3DSpectrum's conservative offline overlay (`H2D offline 0.20 mm - conservative.json`) cleanly suppresses proprietary vendor macros (`M620`, `M621`, `G150.1`), caps acceleration at 1,500 mm/s², and isolates mathematical gradient evaluation from unverified physical machine motion.
 
 Added an automated regression case `H2D vendor export contract matches offline tool and reach invariants` to `tests/fff_print/test_planar_routing.cpp`. The test verifies automated shared-face alignment, dual-tool coverage, reach containment, reversed slot invariance, and macro suppression. Full CTest passed 387 of 395 in 68.57 seconds with the same eight baseline failures. Standalone suite passed 9 of 9. See the [qualification report](test-results/P2-015-h2d-vendor-export-audit.md).
+
+## Entry P2-20261107-17 — Verify H2D vendor reference exports
+
+- **Task** — P2-016
+- **Branch** — `codex/p2-016-h2d-reference-verification`
+- **Base** — `355c0a6883`, the completed Antigravity handoff
+
+Verified the official Bambu Studio 02.09.01.70 portable release digest and regenerated both reference exports with Textured PEI Plate selected explicitly. Added a read-only audit for the reference fixture. Both assignments had 20 matching in-layer change sequences, swapped logical tools across the two bodies and kept model and tower XY extrusion endpoints in their expected bounds. The `H-1` argument leaves the physical side implicit. Each export requested zero flush length in 40 fields and commanded 425.05 mm E on prime tower XY moves. See the [revised report](test-results/P2-015-h2d-vendor-export-audit.md) for the input hashes and definitions.
+
+The audit rejected swapped inputs, a mismatched tool-change completion, a synthetic extrusion outside the assigned body, and the original export with the unexpected plate. The four focused Windows Release cases and all nine standalone tests passed. This follow-up changes the audit and documentation. Hardware qualification remains gated.

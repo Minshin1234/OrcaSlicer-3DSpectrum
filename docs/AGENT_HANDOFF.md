@@ -2,7 +2,7 @@
 
 - **Date** — 2026-11-07 EST
 - **Agent** — Codex
-- **Tasks** — P2-015 H2D vendor export audit and cross-hotend comparison
+- **Tasks** — P2-016 verification of the P2-015 H2D reference exports
 - **Git** — The project snapshot is based on the existing GitHub `main` history at FullSpectrum `v0.9.14` (`cc152a84dd`). Build outputs remain under ignored `build-phase0/`.
 - **Milestone handoff** — Push validated major changes to a `codex/` task branch and record the branch and commit here. See [agent instructions](../AGENTS.md#stage-and-push-major-changes).
 
@@ -16,11 +16,11 @@ The raw-command audit verified generic T0/T1 assignment and extrusion endpoints 
 
 In P2-011, **Align to shared face** positions the preview plane on the confirmed contact, with A on the first part's side and B on the second. **Apply transition** still saves the setting. The STEP regression uses the detected plane for the existing continuous-envelope and G-code checks, and covers reversed part order, rotated and scaled placement, and invalid contacts. The three targeted tests and nine standalone tests passed. Full CTest passed 385 of 393 with the same eight failures.
 
-In P2-014 and P2-015, the offline acceleration preset was verified and the resolved Bambu Studio v02.09.01.70 G-code was audited for the 24 × 12 × 4 mm assembly fixture across both slot assignments (`ab` and `ba`). Filament slot 1 maps to Tool 0 (`T0 H-1`), and slot 2 maps to Tool 1 (`T1 H-1`). Both model and prime tower bounds remain within the physical shared reach (`[25, 325]` × `[0, 320]`). The prime tower consumes 491.06 mm of purge filament across 20 layers (124.7% overhead). Automated regression verified tool invariants, shared reach, and suppression of proprietary vendor macros in the offline overlay. Full CTest passed 387 of 395 with the same eight baseline failures, and the standalone suite passed 9 of 9.
+In P2-014 and P2-015, the offline acceleration preset was verified and both Bambu Studio 02.09.01.70 slot assignments were exported for the 24 × 12 × 4 mm fixture. P2-016 independently verified the logical tool swap, 20 in-layer change sequences and the model and tower extrusion endpoints. The checked exports requested zero in-layer flush length and commanded 425.05 mm E in prime tower XY moves. Physical mapping and actual purge remain open. Four focused cases and the nine standalone cases passed on the follow-up. P2-015 recorded a full CTest result of 387 of 395 with the same eight baseline failures.
 
 ## Next action
 
-P2-015 is on `codex/p2-015-h2d-vendor-audit` (`5ed8d4322d`). The [audit report](test-results/P2-015-h2d-vendor-export-audit.md) records the tool mapping (`T0/T1 H-1`), coordinate bounds, macro contract (`M620`/`M621`/`G150.1`), and purge budget. The automated regression case passed.
+P2-016 is on `codex/p2-016-h2d-reference-verification` and builds on P2-015 (`5ed8d4322d`). The [audit report](test-results/P2-015-h2d-vendor-export-audit.md) records the file hashes, role-aware measurements and audit command. The audit accepts the Textured PEI pair and rejects wrong assignment, mismatched change completion, out-of-component extrusion and an unexpected plate.
 
 P2-014 is on `codex/p2-014-h2d-offline-qualification`. The [qualification report](test-results/P2-014-h2d-offline-qualification.md) records the pinned vendor contract and the tested process preset that clears the offline warning.
 
