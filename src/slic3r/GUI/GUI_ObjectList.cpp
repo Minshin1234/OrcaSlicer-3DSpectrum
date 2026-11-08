@@ -5,6 +5,7 @@
 #include "GUI_Factories.hpp"
 //#include "GUI_ObjectLayers.hpp"
 #include "GUI_App.hpp"
+#include "GUI.hpp"
 #include "I18N.hpp"
 #include "Plater.hpp"
 #include "BitmapComboBox.hpp"
@@ -15,6 +16,7 @@
 #include "Tab.hpp"
 #include "wxExtensions.hpp"
 #include "libslic3r/Model.hpp"
+#include "libslic3r/Format/STEP.hpp"
 #include "GLCanvas3D.hpp"
 #include "Selection.hpp"
 #include "PartPlate.hpp"
@@ -25,6 +27,7 @@
 #include "SingleChoiceDialog.hpp"
 #include "StepMeshDialog.hpp"
 
+#include <algorithm>
 #include <boost/algorithm/string.hpp>
 #include <wx/progdlg.h>
 #include <wx/listbook.h>
@@ -2213,6 +2216,28 @@ void ObjectList::load_modifier(const wxArrayString& input_files, ModelObject& mo
 
     wxWindow* parent = wxGetApp().tab_panel()->GetPage(0);
 
+    std::optional<Vec3d> step_frame;
+    const bool step_parts = type == ModelVolumeType::MODEL_PART && !from_galery &&
+        std::all_of(input_files.begin(), input_files.end(), [](const wxString& file) {
+            return is_step_path(into_path(file));
+        });
+    if (step_parts) {
+        step_frame = step_component_frame(model_object);
+        if (!step_frame) {
+            show_error(parent, _L("The selected object has no consistent STEP coordinate frame. "
+                                  "Import the new files separately, align them with Move, and use Assemble."));
+            return;
+        }
+        MessageDialog dialog(parent,
+            _L("Add these STEP bodies at their CAD coordinates?\n\n"
+               "Continue only if they use the same coordinate system as the selected object. "
+               "Otherwise, import them separately and align them with Move."),
+            _L("Add STEP components"), wxICON_QUESTION | wxYES_NO | wxNO_DEFAULT);
+        if (dialog.ShowModal() != wxID_YES)
+            return;
+    }
+    Model imported_steps;
+
     ProgressDialog dlg(_L("Loading") + dots, "", 100, wxGetApp().mainframe, wxPD_AUTO_HIDE);
 
     wxBusyCursor busy;
@@ -2293,6 +2318,14 @@ void ObjectList::load_modifier(const wxArrayString& input_files, ModelObject& mo
             return;
         }
 
+        if (step_parts) {
+            if (model.objects.empty())
+                return;
+            for (const ModelObject* object : model.objects)
+                imported_steps.add_object(*object);
+            continue;
+        }
+
         if (from_galery)
             model.center_instances_around_point(Vec2d::Zero());
         else {
@@ -2345,6 +2378,8 @@ void ObjectList::load_modifier(const wxArrayString& input_files, ModelObject& mo
 
         added_volumes.push_back(new_volume);
     }
+    if (step_parts)
+        added_volumes = append_step_components(model_object, imported_steps, *step_frame);
 }
 
 static TriangleMesh create_mesh(const std::string& type_name, const BoundingBoxf3& bb)

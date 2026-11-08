@@ -5,6 +5,7 @@
 #include "STEP.hpp"
 
 #include <string>
+#include <boost/algorithm/string/predicate.hpp>
 #include <boost/nowide/cstdio.hpp>
 #include <boost/nowide/iostream.hpp>
 #include <boost/nowide/fstream.hpp>
@@ -226,6 +227,46 @@ static void getNamedSolids(const TopLoc_Location& location,
             break;
         }
     }
+}
+
+bool is_step_path(const fs::path& path)
+{
+    const auto extension = path.extension().string();
+    return boost::iequals(extension, ".step") || boost::iequals(extension, ".stp");
+}
+
+std::optional<Vec3d> step_component_frame(const ModelObject& object)
+{
+    std::optional<Vec3d> frame;
+    for (const ModelVolume* volume : object.volumes) {
+        if (!volume->is_model_part() || !is_step_path(volume->source.input_file) ||
+            !volume->get_matrix().linear().isApprox(Matrix3d::Identity(), 1e-8))
+            return std::nullopt;
+        const Vec3d offset = volume->get_offset() - volume->source.mesh_offset;
+        if (!offset.allFinite() || (frame && (offset - *frame).cwiseAbs().maxCoeff() > 1e-4))
+            return std::nullopt;
+        frame = offset;
+    }
+    return frame;
+}
+
+std::vector<ModelVolume*> append_step_components(ModelObject& destination, const Model& source, const Vec3d& cad_to_local)
+{
+    std::vector<ModelVolume*> added;
+    for (const ModelObject* object : source.objects) {
+        const Vec3d translation = cad_to_local - object->origin_translation;
+        for (const ModelVolume* volume : object->volumes) {
+            ModelVolume* part = destination.add_volume(*volume);
+            part->translate(translation);
+            if (part->name.empty())
+                part->name = fs::path(part->source.input_file).stem().string();
+            if (!part->config.has("extruder") && object->config.has("extruder"))
+                part->config.set("extruder", object->config.extruder());
+            added.push_back(part);
+        }
+    }
+    destination.invalidate_bounding_box();
+    return added;
 }
 
 bool load_step(const char *path, Model *model, bool& is_cancel,

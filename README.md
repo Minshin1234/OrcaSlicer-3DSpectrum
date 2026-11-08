@@ -13,6 +13,10 @@
 
 *Standalone simulation of a 4 mm transition. See the [fixture and material fraction measurements](docs/test-results/P1-003-preview.md).*
 
+## Import STEP components
+
+Import a multi-body STEP or select several STEP files at once. Choose **Keep STEP component placement** if the files share a CAD coordinate system. Each body remains selectable in the Objects panel, where you can assign its filament. Use **Add part → Load** to append STEP bodies while the existing object still has a consistent STEP frame. For files exported with independent origins, import separately, align with **Move**, then use **Assemble**. See the [STEP workflow and placement checks](docs/TESTING.md#audit-step-native-3mf-and-separate-stl-placement).
+
 ## Try it in Prepare
 
 1. Select one solid or one object with two solid parts. Configure two physical filaments with matching nozzle diameters.
@@ -21,11 +25,17 @@
 4. Pick filaments A and B, set the **Transition width**, and select **Apply transition**.
 5. Slice the plate and select **Filament** in Preview to see where each filament is assigned.
 
-The Windows prototype has been checked with horizontal, tilted, diagonal XY and two-body STEP fixtures. The Bambu Lab H2D profile is for offline slicing. Physical nozzle mapping, purge and switching behavior, and the strength of the printed transition still need hardware validation.
+The Windows prototype has been checked with horizontal, tilted, diagonal XY and two-body STEP fixtures. Try the same two-body model using the [STEP fixture](tests/data/planar_gradient/SharedFace.step), or see the [filament preview](docs/assets/p2-011-shared-face-filament-preview.jpg).
+
+## H2D offline testing
+
+The Bambu Lab H2D profile and its companion process preset are for offline slicing and preview. The companion preset resolves the acceleration warning under the generic offline limits. See the [setup and test instructions](docs/TESTING.md#check-the-h2d-offline-profile).
+
+The Bambu Studio reference audit verified logical tool selection in both filament assignments and checked model and prime-tower extrusion endpoints against the shared reach. 3DSpectrum still exports generic tool commands for this profile. Native H2D tool changes, physical left/right nozzle mapping, and purge behavior remain unqualified. See the [reference audit](docs/test-results/P2-015-h2d-vendor-export-audit.md).
 
 ## Where the project is going
 
-The next milestone is to qualify the toolpaths on a specific printer and compare printed transition specimens with sharp-interface controls. Later work will extend the approach to curved interfaces and assemblies with more complex contacts. A robotic gripper with rigid and flexible regions is the planned demonstrator. See the [project plan](docs/PROJECT_PLAN.md), [current status](docs/PROJECT_STATE.md), and [architecture](docs/ARCHITECTURE.md).
+Next are resizable manual planes and gradients driven by the materials on either side of a selected CAD contact. Later work will extend those gradients to curved interfaces and assemblies with multiple contacts. Printer qualification and specimen comparisons remain separate milestones. A robotic gripper with rigid and flexible regions is the planned demonstrator. See the [task backlog](docs/TASKS.md), [current status](docs/PROJECT_STATE.md), and [architecture](docs/ARCHITECTURE.md).
 
 ## Build and test
 

@@ -9721,6 +9721,17 @@ std::vector<size_t> Plater::priv::load_files(const std::vector<fs::path>& input_
     bool load_config = strategy & LoadStrategy::LoadConfig;
     bool imperial_units = strategy & LoadStrategy::ImperialUnits;
     bool silence = strategy & LoadStrategy::Silence;
+    const bool offer_step_assembly = load_model && ask_multi && !silence && !one_by_one &&
+        std::all_of(input_files.begin(), input_files.end(), is_step_path);
+    bool group_step_components = false;
+    if (offer_step_assembly) {
+        MessageDialog dialog(q,
+            _L("Import these STEP files as parts of one object using their CAD coordinates?\n\n"
+               "Choose Yes only if the files were exported in the same coordinate system. Choose No to import them separately, "
+               "align them with Move, and use Assemble."),
+            _L("Keep STEP component placement"), wxICON_QUESTION | wxYES_NO | wxNO_DEFAULT);
+        group_step_components = dialog.ShowModal() == wxID_YES;
+    }
 
     BOOST_LOG_TRIVIAL(info) << __FUNCTION__ << boost::format(": load_model %1%, load_config %2%, input_files size %3%")%load_model %load_config %input_files.size();
 
@@ -9728,7 +9739,7 @@ std::vector<size_t> Plater::priv::load_files(const std::vector<fs::path>& input_
     ProgressDialog dlg(loading, "", 100, find_toplevel_parent(q), wxPD_AUTO_HIDE | wxPD_CAN_ABORT | wxPD_APP_MODAL);
     wxBusyCursor busy;
 
-    auto *new_model = (!load_model || one_by_one) ? nullptr : new Slic3r::Model();
+    auto new_model = (!load_model || one_by_one) ? nullptr : std::make_unique<Slic3r::Model>();
     std::vector<size_t> obj_idxs;
 
     std::string  designer_model_id;
@@ -10575,10 +10586,14 @@ std::vector<size_t> Plater::priv::load_files(const std::vector<fs::path>& input_
         } catch (const ConfigurationError &e) {
             std::string message = GUI::format(_L("Failed loading file \"%1%\". An invalid configuration was found."), filename.string()) + "\n\n" + e.what();
             GUI::show_error(q, message);
+            if (group_step_components)
+                return empty_result;
             continue;
         } catch (const std::exception &e) {
             if (!is_user_cancel)
                 GUI::show_error(q, e.what());
+            if (group_step_components)
+                return empty_result;
             continue;
         }
 
@@ -10672,6 +10687,18 @@ std::vector<size_t> Plater::priv::load_files(const std::vector<fs::path>& input_
             return empty_result;
         }
 
+        if (group_step_components) {
+            if (model.objects.empty())
+                return empty_result;
+            if (new_model->objects.empty()) {
+                auto* assembly = new_model->add_object();
+                assembly->name = real_filename.stem().string();
+                assembly->input_file = path.string();
+            }
+            tolal_model_count += int(append_step_components(*new_model->objects.front(), model, Vec3d::Zero()).size());
+            continue;
+        }
+
         int model_idx = 0;
         for (ModelObject *model_object : model.objects) {
             if (!type_3mf && !type_any_amf) model_object->center_around_origin(false);
@@ -10750,10 +10777,10 @@ std::vector<size_t> Plater::priv::load_files(const std::vector<fs::path>& input_
         }
     }
 
-    if (new_model != nullptr && new_model->objects.size() > 1) {
+    if (new_model && (new_model->objects.size() > 1 || (group_step_components && !new_model->objects.empty()))) {
         //BBS do not popup this dialog
 
-        if (ask_multi) {
+        if (ask_multi && !offer_step_assembly) {
             MessageDialog msg_dlg(q, _L("Load these files as a single object with multiple parts?\n"), _L("Object with multiple parts was detected"),
                                   wxICON_WARNING | wxYES | wxNO);
             if (msg_dlg.ShowModal() == wxID_YES) { new_model->convert_multipart_object(filaments_cnt); }
@@ -10775,8 +10802,6 @@ std::vector<size_t> Plater::priv::load_files(const std::vector<fs::path>& input_
             q->model().InitializeAssemblyPositions(loadedObjects);
         }
     }
-
-    if (new_model) delete new_model;
 
     //BBS: translate old 3mf to correct positions
     if (translate_old) {

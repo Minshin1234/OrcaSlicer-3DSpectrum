@@ -1,5 +1,6 @@
 #ifndef slic3r_Format_STEP_hpp_
 #define slic3r_Format_STEP_hpp_
+#include "../Point.hpp"
 #include "XCAFDoc_DocumentTool.hxx"
 #include "XCAFApp_Application.hxx"
 #include "XCAFDoc_ShapeTool.hxx"
@@ -7,13 +8,27 @@
 #include <boost/filesystem.hpp>
 #include <Message_ProgressIndicator.hxx>
 #include <atomic>
+#include <optional>
+#include <vector>
 
 namespace fs = boost::filesystem;
 
 namespace Slic3r {
 
 class TriangleMesh;
+class Model;
 class ModelObject;
+class ModelVolume;
+
+bool is_step_path(const fs::path& path);
+
+// Recover the translation from source STEP coordinates to the object's local
+// frame when all bodies retain a consistent, translation-only source placement.
+std::optional<Vec3d> step_component_frame(const ModelObject& object);
+
+// Append bodies read from STEP before instance placement. cad_to_local is the
+// translation from their shared CAD frame to the destination object's frame.
+std::vector<ModelVolume*> append_step_components(ModelObject& destination, const Model& source, const Vec3d& cad_to_local);
 
 // load step stage
 const int LOAD_STEP_STAGE_READ_FILE          = 0;

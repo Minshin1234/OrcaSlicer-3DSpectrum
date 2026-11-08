@@ -67,6 +67,23 @@ void write_assembly(const std::string& path)
     REQUIRE(status == IFSelect_RetDone);
 }
 
+void write_step_component(const std::string& path, const char* name, double x, double width)
+{
+    const auto app = XCAFApp_Application::GetApplication();
+    Handle(TDocStd_Document) doc;
+    app->NewDocument(TCollection_ExtendedString("BinXCAF"), doc);
+    const auto tool = XCAFDoc_DocumentTool::ShapeTool(doc->Main());
+    const auto solid = tool->AddShape(BRepPrimAPI_MakeBox(gp_Pnt(x, 8, 3), width, 12, 4).Shape(), false);
+    TDataStd_Name::Set(solid, TCollection_ExtendedString(name));
+    STEPCAFControl_Writer writer;
+    writer.SetNameMode(true);
+    const bool transferred = writer.Transfer(doc, STEPControl_AsIs);
+    const auto status = transferred ? writer.Write(path.c_str()) : IFSelect_RetError;
+    app->Close(doc);
+    REQUIRE(transferred);
+    REQUIRE(status == IFSelect_RetDone);
+}
+
 BoundingBoxf3 world_bounds(const ModelVolume& volume, const ModelInstance& instance)
 {
     const Transform3d world = instance.get_matrix() * volume.get_matrix();
@@ -167,6 +184,93 @@ TEST_CASE("Nested STEP assembly placement and per-body extruders survive a proje
     CHECK(imported_b.config.opt_int("extruder") == 2);
     check_bounds(world_bounds(imported_a, *result.instances.front()), before_a.min, before_a.max);
     check_bounds(world_bounds(imported_b, *result.instances.front()), before_b.min, before_b.max);
+}
+
+TEST_CASE("Separate STEP components retain a shared CAD frame and filament assignments", "[placement-audit][step-components]")
+{
+    const ScratchDirectory scratch;
+    Model assembly;
+    auto* object = assembly.add_object();
+    object->name = "CAD assembly";
+    auto read_component = [&](const char* file, const char* name, double x, double width) {
+        const auto path = (scratch.path / file).string();
+        write_step_component(path, name, x, width);
+        Model model;
+        bool cancelled = false;
+        long faces = -1;
+        REQUIRE(load_step(path.c_str(), &model, cancelled, 0.003, 0.5, false, nullptr, nullptr, faces));
+        REQUIRE_FALSE(cancelled);
+        REQUIRE(model.objects.size() == 1);
+        REQUIRE(model.objects.front()->instances.empty());
+        return model;
+    };
+    const auto base = read_component("base.step", "Rigid base", 12, 10);
+    const auto joint = read_component("joint.STP", "Flexible joint", 22, 6);
+    const auto finger = read_component("finger.step", "Rigid finger", 28, 8);
+    REQUIRE(append_step_components(*object, base, Vec3d::Zero()).size() == 1);
+    REQUIRE(append_step_components(*object, joint, Vec3d::Zero()).size() == 1);
+    const auto cad_frame = step_component_frame(*object);
+    REQUIRE(cad_frame);
+    CHECK(cad_frame->isZero(1e-6));
+    REQUIRE(object->volumes.size() == 2);
+    auto& a = named_body(*object, "Rigid base");
+    auto& b = named_body(*object, "Flexible joint");
+    a.config.set_key_value("extruder", new ConfigOptionInt(1));
+    b.config.set_key_value("extruder", new ConfigOptionInt(2));
+    auto* instance = object->add_instance();
+    check_bounds(world_bounds(a, *instance), {12, 8, 3}, {22, 20, 7});
+    check_bounds(world_bounds(b, *instance), {22, 8, 3}, {28, 20, 7});
+
+    object->center_around_origin();
+    instance->set_offset({135, 120, 8});
+    instance->set_rotation({0, 0, 0.37});
+    const auto before_a = world_bounds(a, *instance);
+    const auto before_b = world_bounds(b, *instance);
+    const auto frame = step_component_frame(*object);
+    REQUIRE(frame);
+    CHECK(frame->isApprox(object->origin_translation, 1e-6));
+
+    PresetBundle bundle;
+    auto config = bundle.project_config;
+    config.option<ConfigOptionStrings>("filament_colour")->values = {"#226699", "#EEAA44"};
+    const std::string project_path = (scratch.path / "components.3mf").string();
+    StoreParams store;
+    store.path = project_path.c_str();
+    store.model = &assembly;
+    store.config = &config;
+    store.strategy = SaveStrategy::Zip64 | SaveStrategy::Silence | SaveStrategy::SkipStatic;
+    REQUIRE(store_bbs_3mf(store));
+
+    LoadedProject loaded;
+    loaded.model.set_backup_path((scratch.path / "import-backup").string());
+    DynamicPrintConfig imported_config;
+    ConfigSubstitutionContext substitutions{ForwardCompatibilitySubstitutionRule::Disable};
+    bool is_bbs = false;
+    Semver version;
+    REQUIRE(load_bbs_3mf(project_path.c_str(), &imported_config, &substitutions, &loaded.model, &loaded.plates, &loaded.presets, &is_bbs,
+                         &version, nullptr, LoadStrategy::LoadModel | LoadStrategy::LoadConfig));
+    REQUIRE(loaded.model.objects.size() == 1);
+    auto& reopened = *loaded.model.objects.front();
+    REQUIRE(reopened.instances.size() == 1);
+    auto& reopened_instance = *reopened.instances.front();
+    auto& reopened_a = named_body(reopened, "Rigid base");
+    auto& reopened_b = named_body(reopened, "Flexible joint");
+    CHECK(reopened_a.config.extruder() == 1);
+    CHECK(reopened_b.config.extruder() == 2);
+    const auto reopened_frame = step_component_frame(reopened);
+    REQUIRE(reopened_frame);
+    CHECK(reopened_frame->isApprox(*frame, 1e-6));
+    const auto added = append_step_components(reopened, finger, *reopened_frame);
+    REQUIRE(added.size() == 1);
+    REQUIRE(reopened.volumes.size() == 3);
+    CHECK(added.front()->name == "Rigid finger");
+    check_bounds(world_bounds(reopened_a, reopened_instance), before_a.min, before_a.max);
+    check_bounds(world_bounds(reopened_b, reopened_instance), before_b.min, before_b.max);
+    const Vec3d cad_delta = reopened_instance.get_matrix().linear() * Vec3d(7, 0, 0);
+    CHECK(world_bounds(*added.front(), reopened_instance).center().isApprox(before_b.center() + cad_delta, 1e-6));
+    CHECK(step_component_frame(reopened));
+    added.front()->translate(Vec3d(0.2, 0, 0));
+    CHECK_FALSE(step_component_frame(reopened));
 }
 
 TEST_CASE("Separate STL files preserve vertex coordinates but cannot restore omitted placement", "[placement-audit]")
