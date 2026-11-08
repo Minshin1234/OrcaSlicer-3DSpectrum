@@ -318,3 +318,70 @@ The offline H2D slice succeeded and Preview showed the blue and orange filament 
 Compared the complete local source snapshot with the existing FullSpectrum history. All baseline paths were present. Prepared the project changes as a child of the existing GitHub commit using a separate index. Rewrote the README around adjustable transitions, within-layer filament assignment, and shared CAD faces. The roadmap separates offline slicing from printer qualification and the planned gripper.
 
 All nine README relative links resolved. The standalone suite passed 9 of 9. Full Windows Release CTest passed 385 of 393 in 84.48 seconds, with the same eight failures as P2-011. This source publication skips push-triggered GitHub workflows because the inherited build workflow can also publish binaries.
+
+## Entry P2-20261107-13 — Planar transition manufacturability baseline
+
+- **Date** — 2026-11-07 EST
+- **Task** — P2-012
+- **Source revision** — [`0c59c8fb7865996ae2b1465a72b0a85c279f9d2d`](https://github.com/Minshin1234/OrcaSlicer-3DSpectrum/tree/0c59c8fb7865996ae2b1465a72b0a85c279f9d2d)
+- **Environment** — Windows x64 Release, Visual Studio 2022, CTest 3.31.6-msvc6
+
+### Experimental direct regions
+
+The 18 × 6 × 4 mm rectangle used a 4 mm transition, 1 mm cells, 0.2 mm layers and 0.45 mm nominal bead width. The direct route commanded 54.902% material B versus a 55.556% slice-region target, a difference of −0.654 percentage points. It matched the commanded B share of the ordered-volume reference to the reported precision. At each trial clearance width of 0.45 mm and 0.90 mm, 20 component-layer instances split and none disappeared entirely, in each route.
+
+The direct route had 174.401 mm of upper-layer centerlines outside the modeled previous-layer bead footprint, or 4.65% of 3,750.630 mm. About 3.00% of the total was outside the footprint and outside bridge or overhang roles. These measures screen geometry using a modeled bead footprint. The [P2-004 qualification report](test-results/P2-004-qualification.md) defines the calculations and records both routes.
+
+### Current transition toolpaths
+
+The current workflow assigns the two materials along existing wall and infill paths. Use the [routing test source](../tests/fff_print/test_planar_routing.cpp) to reproduce the centered 8 mm transitions through a 20 mm cube (horizontal, tilted with reversed slots, and diagonal XY) and the shared face between the 10 × 12 × 4 mm and 14 × 12 × 4 mm STEP solids. For a desktop check, import the [saved STEP fixture](../tests/data/planar_gradient/SharedFace.step) as one object, select **Align to shared face**, set the width to 8 mm, and slice with the offline profile.
+
+The raw G-code audit checked generic T0/T1 assignments and both endpoints of each model extrusion move against the band and shared nozzle reach. The largest wrong-side excursion was 0.000471 mm across the four fixtures, within the 0.002 mm rounding allowance. The diagonal XY cube used both materials on all 100 layers. The STEP assembly used both on all 20 layers and produced one continuous envelope.
+
+| 8 mm fixture | Model moves under 0.2 mm | Tool changes | Max model B error (pp) | Max outer-wall B error (pp) |
+| --- | ---: | ---: | ---: | ---: |
+| Horizontal cube | 862 | 41 | 0.75 | 1.25 |
+| Tilted cube, reversed slots | 1,029 | 100 | 0.60 | 3.05 |
+| Diagonal XY cube | 1,195 | 100 | 2.68 | 6.25 |
+| Shared-face STEP | — | 20 | — | — |
+
+Errors are the largest absolute difference from the target B fraction across seven signed-distance bands, in percentage points. The STEP case currently records routing and envelope checks. Actual purge cost and printer time remain open.
+
+The [H2D profile research](test-results/P2-005-h2d-profile.md) describes the remaining integration work. The offline profile uses generic tool selection. Physical hotend mapping, firmware-specific tool changes, wipe and purge behavior remain unqualified. The desktop app also reported an acceleration setting above the profile limit. All evidence here comes from simulation, G-code inspection or desktop preview.
+
+### Evidence and reproduction
+
+- [Windows test log excerpts and per-fixture metrics](test-results/P2-012-baseline.txt). Five focused cases passed on the pinned source. The publication run passed 385 of 393 with the same eight baseline failures. The standalone sampler passed 9 of 9. Full local logs remain under ignored `build-phase0/`.
+- [Desktop STEP filament preview](assets/p2-011-shared-face-filament-preview.jpg) captured from the Release app. It shows two original CAD bodies in the Objects list, an interleaved band, and 20 filament changes. The preview's 9 min 15 s estimate uses the offline profile.
+- [Standalone two-cuboid preview and measurements](test-results/P1-003-preview.md) show the 1 mm cell assignments for the earlier 4 mm transition. Use the [Windows build and test recipe](TESTING.md#reproduce-on-windows) to rebuild the benchmark executables.
+
+From the repository root, rerun the focused suite and capture the per-band and routing metrics with the Release executable. The verbose output includes repeated assertions. Keep the raw files under the build directory.
+
+```powershell
+ctest --test-dir build-phase0/app -C Release -R 'Compare opt-in ordered volumes|H2D offline machine geometry|A gradual material transition|A STEP assembly transitions|Native 3MF preserves planar material' --output-on-failure --no-tests=error
+$fff = './build-phase0/app/tests/fff_print/Release/fff_print_tests.exe'
+foreach ($section in 'Horizontal plane', 'Tilted plane and reversed slots', 'Diagonal XY gradient') {
+    & $fff 'A gradual material transition routes an intact solid by signed distance' -c $section -s > "build-phase0/P2-012-$section.log"
+}
+& $fff '[assembly-interface]' -c 'Contact face stays in place and both tools print each layer' -s > build-phase0/P2-012-STEP.log
+```
+
+### Next milestones
+
+1. **P2-013 toolpath optimization benchmark.** Run the baseline and candidate on identical fixtures and profiles. Include several widths and both the ordinary slice and sharp-interface control where applicable. Record sub-0.2 mm model segments, total model extrusion, tool changes, B fraction error by signed-distance band, outer-wall error, estimated print time and purge cost. Record clearance splits and previous-layer footprint misses separately, with bridge and overhang roles identified.
+2. **H2D G-code qualification.** Verify physical left/right hotend mapping, shared reach, tool changes, purge and wipe against a specific machine and firmware. Resolve the acceleration warning before hardware use.
+3. **First physical graded specimen.** With reviewed G-code and operator approval, print a planar specimen and inspect the deposited material distribution.
+4. **Mechanical testing.** Compare graded and sharp-interface specimens under the same test conditions and record failure locations and variability.
+5. **Curved interfaces.** Extend contact selection and signed-distance sampling after planar manufacturing behavior is characterized.
+
+## Entry P2-20261107-14 — Toolpath grid-pitch benchmark
+
+- **Date** — 2026-11-07 EST
+- **Task** — P2-013
+- **Branch** — `codex/p2-013-toolpath-benchmark`
+
+Added an optional width sweep to the existing cube regression. Compared the production 1.2 mm XY grid with a 1.6 mm candidate at 4, 8 and 12 mm widths across horizontal, tilted and diagonal XY planes. The ordinary control stayed at 1,317.65 mm of commanded filament. The gradient cases stayed within 0.022% of that total and the offline profile reported zero flush.
+
+The 1.6 mm candidate reduced short moves in all nine cases. The 8 mm diagonal dropped from 1,195 to 1,048 short moves, still used 100 tool changes, and increased the offline time estimate by 39.07 seconds. The 4 mm diagonal outer-wall error rose from 9.69 to 18.46 percentage points and failed the in-band tolerance. The 8 mm STEP contact still passed the command audit and used both tools through the 20-layer envelope. Restored the 1.2 mm production grid. The [benchmark report](test-results/P2-013-toolpath-benchmark.md) has all rows and reproduction commands.
+
+With the production pitch restored, the Release test targets rebuilt and full CTest passed 385 of 393 in 81.92 seconds. The eight failures matched P2-012 by case and outcome. The standalone suite passed 9 of 9.

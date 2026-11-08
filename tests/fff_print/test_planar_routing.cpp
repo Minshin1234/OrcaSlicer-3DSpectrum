@@ -18,6 +18,7 @@
 #include <boost/filesystem.hpp>
 
 #include <array>
+#include <cstdlib>
 #include <fstream>
 #include <limits>
 #include <set>
@@ -553,8 +554,11 @@ TEST_CASE("A gradual material transition routes an intact solid by signed distan
         normal = Vec3d(0.8, 0.6, 0.);
     }
 
+    const char* benchmark_width = std::getenv("SLIC3R_TEST_PLANAR_WIDTH");
+    const double width = benchmark_width ? std::stod(benchmark_width) : 8.;
+    REQUIRE((width == 4. || width == 8. || width == 12.));
     const unsigned int tool_b = reverse_slots ? 0 : 1;
-    const Transition spec{center, normal, 8., {2 - tool_b, 1 + tool_b}};
+    const Transition spec{center, normal, width, {2 - tool_b, 1 + tool_b}};
     object.config.set_key_value(TRANSITION_OPTION, new ConfigOptionFloats(spec.serialize()));
     auto config = routing_config();
     config.apply(offline_h2d_config());
@@ -590,7 +594,7 @@ TEST_CASE("A gradual material transition routes an intact solid by signed distan
         double actual_b = 0.;
         double target_b = 0.;
     };
-    const std::array<double, 6> edges{-4., -3., -1., 1., 3., 4.};
+    const std::array<double, 6> edges{-width / 2., -3. * width / 8., -width / 8., width / 8., 3. * width / 8., width / 2.};
     std::array<Band, 7> bands;
     std::array<Band, 7> wall_bands;
     double total_extrusion = 0.;
@@ -641,6 +645,8 @@ TEST_CASE("A gradual material transition routes an intact solid by signed distan
     }
     CAPTURE(tool_changes, short_model_moves);
     CHECK(wall_tools == std::set<unsigned>{0, 1});
+    double max_model_error = 0.;
+    double max_wall_error = 0.;
     for (size_t i = 0; i < bands.size(); ++i) {
         const auto& band = bands[i];
         REQUIRE(band.volume > 0.);
@@ -650,6 +656,8 @@ TEST_CASE("A gradual material transition routes an intact solid by signed distan
         REQUIRE(wall.volume > 0.);
         const double actual_wall = wall.actual_b / wall.volume;
         const double target_wall = wall.target_b / wall.volume;
+        max_model_error = std::max(max_model_error, std::abs(actual - target));
+        max_wall_error = std::max(max_wall_error, std::abs(actual_wall - target_wall));
         CAPTURE(i, actual, target, actual_wall, target_wall);
         const bool pure = i == 0 || i == bands.size() - 1;
         CHECK(actual == Approx(target).margin(pure ? 0.015 : 0.05));
@@ -677,6 +685,18 @@ TEST_CASE("A gradual material transition routes an intact solid by signed distan
         }
     CHECK(total_extrusion == Approx(plain_total).epsilon(0.025));
     CHECK(outer_extrusion == Approx(plain_outer).epsilon(0.025));
+    if (benchmark_width) {
+        double flush_mm3 = 0.;
+        for (const auto& entry : result.print_statistics.flush_per_filament)
+            flush_mm3 += entry.second;
+        const size_t mode = static_cast<size_t>(PrintEstimatedStatistics::ETimeMode::Normal);
+        WARN("PLANAR_BENCH width_mm=" << width << " normal=" << normal.transpose()
+             << " short_moves=" << short_model_moves << " tool_changes=" << commands.tool_changes
+             << " mixed_layers=" << commands.mixed_layers << " max_model_error_pp=" << 100. * max_model_error
+             << " max_wall_error_pp=" << 100. * max_wall_error << " model_e_mm=" << total_extrusion
+             << " control_e_mm=" << plain_total << " estimated_s=" << result.print_statistics.modes[mode].time
+             << " control_estimated_s=" << plain.print_statistics.modes[mode].time << " offline_flush_mm3=" << flush_mm3);
+    }
 }
 
 TEST_CASE("A STEP assembly transitions across its selected shared face", "[planar-transition][assembly-interface]")

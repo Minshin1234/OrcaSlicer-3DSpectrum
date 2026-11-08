@@ -17,8 +17,8 @@ In P2-011, **Align to shared face** positions the preview plane on the confirmed
 
 ## Next action
 
-P2-004 still tracks H2D export qualification. Screen deposition fragments, switching and purge before attempting hardware validation. P3-001 remains gated by machine-specific offline review and human authorization. The sharp-cut and rectangle-region prototypes remain historical references.
+P2-013 is on `codex/p2-013-toolpath-benchmark`. The [benchmark report](test-results/P2-013-toolpath-benchmark.md) includes the repeatable width sweep and the decision to keep the 1.2 mm grid. The restored build passed 385 of 393 CTest cases with the same eight baseline failures and 9 of 9 standalone cases. Use the [P2-012 baseline](DOCUMENTATION.md#entry-p2-20261107-13--planar-transition-manufacturability-baseline) to compare any localized cleanup. Keep direct-region continuity and footprint results separate from the current path-assignment checks. P3-001 remains gated by machine-specific offline review and human authorization.
 
-The P2-011 Windows build is under `build-phase0/p2-011-preview/`, staged separately from the open P2-009 app. Use `--datadir` with `build-phase0/p2-011-h2d-data/` to load the offline H2D profile. The `[assembly-interface]` test generates the same two-body model as `build-phase0/p2-011-shared-face.step`. The desktop walkthrough passed and the staged app is open on its filament preview. If Cut is hidden, turn on **Advance** in Prepare.
+The P2-011 Windows build is under `build-phase0/p2-011-preview/`. Use `--datadir` with `build-phase0/p2-011-h2d-data/` to load the offline H2D profile. The `[assembly-interface]` test generates the same two-body model as the [saved STEP fixture](../tests/data/planar_gradient/SharedFace.step). If Cut is hidden, turn on **Advance** in Prepare.
 
 [Project state](PROJECT_STATE.md) · [Backlog](TASKS.md) · [Testing](TESTING.md)
