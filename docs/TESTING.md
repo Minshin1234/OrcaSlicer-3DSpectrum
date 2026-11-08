@@ -108,3 +108,9 @@ ctest --test-dir build-phase0/app -C Release -R 'H2D offline machine geometry' -
 ```
 
 The case applies the overlay to the direct planar fixture and checks tool IDs and extrusion endpoints. Use the [profile research report](test-results/P2-005-h2d-profile.md) for the source revisions and hardware support gaps.
+
+For the desktop offline preview, use **File → Import → Import Configs** to import the [conservative 0.20 mm process preset](../resources/profiles/offline/H2D%20offline%200.20%20mm%20-%20conservative.json). Select it with **Bambu Lab H2D 0.4 dual - OFFLINE ONLY**. The dedicated regression compares validation before and after applying the process and audits the resulting acceleration commands and two-tool model extrusion. The [H2D qualification report](test-results/P2-014-h2d-offline-qualification.md) records the remaining hardware gates.
+
+```powershell
+ctest --test-dir build-phase0/app -C Release -R 'H2D offline' --output-on-failure --no-tests=error
+```

@@ -385,3 +385,15 @@ Added an optional width sweep to the existing cube regression. Compared the prod
 The 1.6 mm candidate reduced short moves in all nine cases. The 8 mm diagonal dropped from 1,195 to 1,048 short moves, still used 100 tool changes, and increased the offline time estimate by 39.07 seconds. The 4 mm diagonal outer-wall error rose from 9.69 to 18.46 percentage points and failed the in-band tolerance. The 8 mm STEP contact still passed the command audit and used both tools through the 20-layer envelope. Restored the 1.2 mm production grid. The [benchmark report](test-results/P2-013-toolpath-benchmark.md) has all rows and reproduction commands.
 
 With the production pitch restored, the Release test targets rebuilt and full CTest passed 385 of 393 in 81.92 seconds. The eight failures matched P2-012 by case and outcome. The standalone suite passed 9 of 9.
+
+## Entry P2-20261107-15 — H2D offline command and acceleration review
+
+- **Date** — 2026-11-07 EST
+- **Task** — P2-014
+- **Branch** — `codex/p2-014-h2d-offline-qualification`
+
+Compared the pinned vendor preset, exporter and nozzle-mapping code with the generic offline export. Bambu Studio resolves the filament and its physical hotend separately. The local raw audit verifies the generic slots and shared model reach. A resolved export for the target firmware remains necessary to review physical left/right mapping and firmware-specific startup, change, purge, wipe and shutdown.
+
+Added a conservative offline process preset and a regression that reproduces the original validation warning, clears it, and checks the generated commands. The 20-layer test used both generic tools on every layer, retained the offline marker and emitted accelerations of 300, 500 and 1,500 mm/s². The preset is separate from the machine overlay and the P2-013 benchmark inputs.
+
+The Windows Release FFF target rebuilt. All five focused cases passed, all nine standalone cases passed, and full CTest passed 386 of 394 in 82.33 seconds with the same eight baseline failures. See the [qualification report](test-results/P2-014-h2d-offline-qualification.md). Raw logs are under ignored `build-phase0/p2-014-*`.

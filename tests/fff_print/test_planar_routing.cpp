@@ -268,13 +268,13 @@ CommandAudit audit_offline_commands(const std::string& path, const Transition& s
     return audit;
 }
 
-DynamicPrintConfig offline_h2d_config()
+DynamicPrintConfig offline_h2d_config(const char* filename = "Bambu Lab H2D 0.4 dual - offline.json")
 {
     DynamicPrintConfig profile;
     ConfigSubstitutionContext substitutions{ForwardCompatibilitySubstitutionRule::Disable};
     std::map<std::string, std::string> metadata;
     std::string reason;
-    const std::string path = std::string(TEST_RESOURCES_DIR) + "/profiles/offline/Bambu Lab H2D 0.4 dual - offline.json";
+    const std::string path = std::string(TEST_RESOURCES_DIR) + "/profiles/offline/" + filename;
     const int status = profile.load_from_json(path, substitutions, false, metadata, reason);
     INFO(reason);
     REQUIRE(status == 0);
@@ -531,6 +531,57 @@ TEST_CASE("H2D offline machine geometry loads and contains both planar tools", "
     CHECK(m.extruding_tools == std::set<unsigned>{0, 1});
     CHECK(m.perimeter_tools == std::set<unsigned>{0, 1});
     CHECK(m.tool_changes > 0);
+}
+
+TEST_CASE("H2D offline process respects the generic acceleration cap", "[h2d-offline]")
+{
+    Model model;
+    auto& object = *model.add_object();
+    object.add_volume(make_cube(10, 10, 4));
+    auto& instance = *object.add_instance();
+    instance.set_offset({175, 160, 0});
+    const Transform3d placement = instance.get_matrix();
+    const Transition spec{placement.inverse() * object.instance_bounding_box(0).center(), Vec3d::UnitX(), 4., {1, 2}};
+    object.config.set_key_value(TRANSITION_OPTION, new ConfigOptionFloats(spec.serialize()));
+
+    auto config = routing_config();
+    config.apply(offline_h2d_config());
+    Print print;
+    print.set_status_silent();
+    print.apply(model, config);
+    StringObjectException original_warning{};
+    REQUIRE(print.validate(&original_warning).string.empty());
+    INFO(original_warning.string);
+    REQUIRE(original_warning.string.find("machine_max_acceleration_extruding") != std::string::npos);
+
+    config.apply(offline_h2d_config("H2D offline 0.20 mm - conservative.json"));
+    print.apply(model, config);
+    StringObjectException warning{};
+    REQUIRE(print.validate(&warning).string.empty());
+    INFO(warning.string);
+    CHECK(warning.string.empty());
+
+    print.process();
+    TemporaryGcode gcode;
+    GCodeProcessorResult result;
+    print.export_gcode(gcode.path.string(), &result, nullptr);
+    const auto audit = audit_offline_commands(gcode.path.string(), spec, placement, BoundingBoxf({25, 0}, {325, 320}));
+    CHECK(audit.mixed_layers == 20);
+
+    const double cap = print.config().machine_max_acceleration_extruding.get_at(0);
+    REQUIRE(cap == 1500.);
+    size_t acceleration_commands = 0;
+    GCodeReader reader;
+    REQUIRE(reader.parse_file(gcode.path.string(), [&](const GCodeReader&, const GCodeReader::GCodeLine& line) {
+        CHECK(line.cmd() != "M201");
+        if (line.cmd() != "M204")
+            return;
+        float value;
+        REQUIRE(line.has_value('S', value));
+        CHECK(value <= cap);
+        ++acceleration_commands;
+    }));
+    CHECK(acceleration_commands > 0);
 }
 
 TEST_CASE("A gradual material transition routes an intact solid by signed distance", "[planar-transition]")

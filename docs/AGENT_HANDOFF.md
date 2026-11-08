@@ -17,6 +17,8 @@ In P2-011, **Align to shared face** positions the preview plane on the confirmed
 
 ## Next action
 
+P2-014 is on `codex/p2-014-h2d-offline-qualification`. The [qualification report](test-results/P2-014-h2d-offline-qualification.md) records the pinned vendor contract and the tested process preset that clears the offline warning. The five focused and nine standalone cases passed. Full CTest passed 386 of 394 with the same eight baseline failures. Obtain a known-good, resolved Bambu Studio export for the target H2D firmware and both filament assignments before implementing native commands.
+
 P2-013 is on `codex/p2-013-toolpath-benchmark`. The [benchmark report](test-results/P2-013-toolpath-benchmark.md) includes the repeatable width sweep and the decision to keep the 1.2 mm grid. The restored build passed 385 of 393 CTest cases with the same eight baseline failures and 9 of 9 standalone cases. Use the [P2-012 baseline](DOCUMENTATION.md#entry-p2-20261107-13--planar-transition-manufacturability-baseline) to compare any localized cleanup. Keep direct-region continuity and footprint results separate from the current path-assignment checks. P3-001 remains gated by machine-specific offline review and human authorization.
 
 The P2-011 Windows build is under `build-phase0/p2-011-preview/`. Use `--datadir` with `build-phase0/p2-011-h2d-data/` to load the offline H2D profile. The `[assembly-interface]` test generates the same two-body model as the [saved STEP fixture](../tests/data/planar_gradient/SharedFace.step). If Cut is hidden, turn on **Advance** in Prepare.
