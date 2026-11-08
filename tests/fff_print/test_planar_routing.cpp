@@ -1,4 +1,5 @@
 #include <catch2/catch_approx.hpp>
+#include <catch2/generators/catch_generators.hpp>
 #include <catch2/catch_test_macros.hpp>
 
 #include "../data/planar_gradient/TwoCuboidFixture.hpp"
@@ -828,18 +829,37 @@ TEST_CASE("A gradual material transition routes an intact solid by signed distan
 
 TEST_CASE("A STEP assembly transitions across its selected shared face", "[planar-transition][assembly-interface]")
 {
-    TemporaryGcode     step_file("planar-interface-%%%%-%%%%-%%%%.step");
-    const auto&        step_path = step_file.path;
-    STEPControl_Writer writer;
-    REQUIRE(writer.Transfer(BRepPrimAPI_MakeBox(gp_Pnt(12, 8, 0), 10, 12, 4).Shape(), STEPControl_AsIs) == IFSelect_RetDone);
-    REQUIRE(writer.Transfer(BRepPrimAPI_MakeBox(gp_Pnt(22, 8, 0), 14, 12, 4).Shape(), STEPControl_AsIs) == IFSelect_RetDone);
-    REQUIRE(writer.Write(step_path.string().c_str()) == IFSelect_RetDone);
+    const bool separate_files = GENERATE(false, true);
+    CAPTURE(separate_files);
+    const auto left_body = BRepPrimAPI_MakeBox(gp_Pnt(12, 8, 0), 10, 12, 4).Shape();
+    const auto right_body = BRepPrimAPI_MakeBox(gp_Pnt(22, 8, 0), 14, 12, 4).Shape();
+    auto read_step = [](STEPControl_Writer& writer, Model& model) {
+        TemporaryGcode step_file("planar-interface-%%%%-%%%%-%%%%.step");
+        REQUIRE(writer.Write(step_file.path.string().c_str()) == IFSelect_RetDone);
+        bool cancelled = false;
+        long faces = -1;
+        REQUIRE(load_step(step_file.path.string().c_str(), &model, cancelled, 0.003, 0.5, false, nullptr, nullptr, faces));
+        REQUIRE_FALSE(cancelled);
+    };
 
     Model model;
-    bool  cancelled = false;
-    long  faces     = -1;
-    REQUIRE(load_step(step_path.string().c_str(), &model, cancelled, 0.003, 0.5, false, nullptr, nullptr, faces));
-    REQUIRE_FALSE(cancelled);
+    STEPControl_Writer writer;
+    REQUIRE(writer.Transfer(left_body, STEPControl_AsIs) == IFSelect_RetDone);
+    if (separate_files) {
+        auto& assembly = *model.add_object();
+        Model left_source;
+        read_step(writer, left_source);
+        REQUIRE(append_step_components(assembly, left_source, Vec3d::Zero()).size() == 1);
+
+        STEPControl_Writer right_writer;
+        REQUIRE(right_writer.Transfer(right_body, STEPControl_AsIs) == IFSelect_RetDone);
+        Model right_source;
+        read_step(right_writer, right_source);
+        REQUIRE(append_step_components(assembly, right_source, Vec3d::Zero()).size() == 1);
+    } else {
+        REQUIRE(writer.Transfer(right_body, STEPControl_AsIs) == IFSelect_RetDone);
+        read_step(writer, model);
+    }
     REQUIRE(model.objects.size() == 1);
     auto& object = *model.objects.front();
     REQUIRE(object.volumes.size() == 2);

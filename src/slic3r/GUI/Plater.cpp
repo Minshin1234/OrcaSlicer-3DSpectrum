@@ -9725,11 +9725,12 @@ std::vector<size_t> Plater::priv::load_files(const std::vector<fs::path>& input_
         std::all_of(input_files.begin(), input_files.end(), is_step_path);
     bool group_step_components = false;
     if (offer_step_assembly) {
-        MessageDialog dialog(q,
-            _L("Import these STEP files as parts of one object using their CAD coordinates?\n\n"
-               "Choose Yes only if the files were exported in the same coordinate system. Choose No to import them separately, "
-               "align them with Move, and use Assemble."),
-            _L("Keep STEP component placement"), wxICON_QUESTION | wxYES_NO | wxNO_DEFAULT);
+        RichMessageDialog dialog(q,
+            _L("Import as one object if the STEP files share the same CAD coordinate system. Their bodies stay selectable as parts.\n\n"
+               "For two bodies that share a complete flat face, use Cut → Material transition to apply a gradient across that face.\n\n"
+               "If the files use different origins, import separately, align with Move, and use Assemble."),
+            _L("Import STEP components"), wxICON_QUESTION | wxYES_NO | wxNO_DEFAULT);
+        dialog.SetYesNoLabels(_L("Import as one object"), _L("Import separately"));
         group_step_components = dialog.ShowModal() == wxID_YES;
     }
 

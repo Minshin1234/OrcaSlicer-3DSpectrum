@@ -15,7 +15,9 @@
 
 ## Import STEP components
 
-Import a multi-body STEP or select several STEP files at once. Choose **Keep STEP component placement** if the files share a CAD coordinate system. Each body remains selectable in the Objects panel, where you can assign its filament. Use **Add part → Load** to append STEP bodies while the existing object still has a consistent STEP frame. For files exported with independent origins, import separately, align with **Move**, then use **Assemble**. See the [STEP workflow and placement checks](docs/TESTING.md#audit-step-native-3mf-and-separate-stl-placement).
+Import a multi-body STEP or select several STEP files at once. Choose **Import as one object** if the files share a CAD coordinate system. Each body remains selectable in the Objects panel. To make a gradient across two touching bodies, keep both on the same base filament and choose A and B in the transition tool. For conventional multi-material printing, assign filaments per body in the Objects panel.
+
+Use **Add part → Load** to append STEP bodies while the existing object still has a consistent STEP frame. For files exported with independent origins, choose **Import separately**, align with **Move**, then use **Assemble**. See the [STEP workflow and placement checks](docs/TESTING.md#audit-step-native-3mf-and-separate-stl-placement).
 
 ## Try it in Prepare
 
