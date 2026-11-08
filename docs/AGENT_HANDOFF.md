@@ -2,8 +2,9 @@
 
 - **Date** — 2026-11-07 EST
 - **Agent** — Codex
-- **Tasks** — P2-011 shared-face alignment and P0-003 source snapshot reconciliation
+- **Tasks** — P2-016 verification of the P2-015 H2D reference exports
 - **Git** — The project snapshot is based on the existing GitHub `main` history at FullSpectrum `v0.9.14` (`cc152a84dd`). Build outputs remain under ignored `build-phase0/`.
+- **Milestone handoff** — Push validated major changes to a `codex/` task branch and record the branch and commit here. See [agent instructions](../AGENTS.md#stage-and-push-major-changes).
 
 ## Completed offline
 
@@ -15,10 +16,18 @@ The raw-command audit verified generic T0/T1 assignment and extrusion endpoints 
 
 In P2-011, **Align to shared face** positions the preview plane on the confirmed contact, with A on the first part's side and B on the second. **Apply transition** still saves the setting. The STEP regression uses the detected plane for the existing continuous-envelope and G-code checks, and covers reversed part order, rotated and scaled placement, and invalid contacts. The three targeted tests and nine standalone tests passed. Full CTest passed 385 of 393 with the same eight failures.
 
+In P2-014 and P2-015, the offline acceleration preset was verified and both Bambu Studio 02.09.01.70 slot assignments were exported for the 24 × 12 × 4 mm fixture. P2-016 independently verified the logical tool swap, 20 in-layer change sequences and the model and tower extrusion endpoints. The checked exports requested zero in-layer flush length and commanded 425.05 mm E in prime tower XY moves. Physical mapping and actual purge remain open. Four focused cases and the nine standalone cases passed on the follow-up. P2-015 recorded a full CTest result of 387 of 395 with the same eight baseline failures.
+
 ## Next action
 
-P2-004 still tracks H2D export qualification. Screen deposition fragments, switching and purge before attempting hardware validation. P3-001 remains gated by machine-specific offline review and human authorization. The sharp-cut and rectangle-region prototypes remain historical references.
+P2-016 is on `codex/p2-016-h2d-reference-verification` and builds on P2-015 (`5ed8d4322d`). The [audit report](test-results/P2-015-h2d-vendor-export-audit.md) records the file hashes, role-aware measurements and audit command. The audit accepts the Textured PEI pair and rejects wrong assignment, mismatched change completion, out-of-component extrusion and an unexpected plate.
 
-The P2-011 Windows build is under `build-phase0/p2-011-preview/`, staged separately from the open P2-009 app. Use `--datadir` with `build-phase0/p2-011-h2d-data/` to load the offline H2D profile. The `[assembly-interface]` test generates the same two-body model as `build-phase0/p2-011-shared-face.step`. The desktop walkthrough passed and the staged app is open on its filament preview. If Cut is hidden, turn on **Advance** in Prepare.
+P2-014 is on `codex/p2-014-h2d-offline-qualification`. The [qualification report](test-results/P2-014-h2d-offline-qualification.md) records the pinned vendor contract and the tested process preset that clears the offline warning.
+
+P2-013 is on `codex/p2-013-toolpath-benchmark`. The [benchmark report](test-results/P2-013-toolpath-benchmark.md) includes the repeatable width sweep and the decision to keep the 1.2 mm grid. Use the [P2-012 baseline](DOCUMENTATION.md#entry-p2-20261107-13--planar-transition-manufacturability-baseline) to compare any localized cleanup.
+
+Before physical execution on an H2D printer (Phase 3 / P3-001), record the specific machine serial, firmware version, and installed hotends, review the generated machine-specific tool-change sequence offline, and obtain human operator authorization.
+
+The P2-011 Windows build is under `build-phase0/p2-011-preview/`. Use `--datadir` with `build-phase0/p2-011-h2d-data/` to load the offline H2D profile. The `[assembly-interface]` test generates the same two-body model as the [saved STEP fixture](../tests/data/planar_gradient/SharedFace.step). If Cut is hidden, turn on **Advance** in Prepare.
 
 [Project state](PROJECT_STATE.md) · [Backlog](TASKS.md) · [Testing](TESTING.md)

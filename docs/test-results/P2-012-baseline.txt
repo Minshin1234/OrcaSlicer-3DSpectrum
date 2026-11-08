@@ -1,0 +1,106 @@
+P2-012 planar transition manufacturability baseline
+Source revision 0c59c8fb7865996ae2b1465a72b0a85c279f9d2d
+Windows x64 Release, Visual Studio 2022, CTest 3.31.6-msvc6
+Selected output from local build-phase0 logs. The checkout path was removed.
+
+[Focused rerun] p2-012-targeted.log
+Test project <repo>/build-phase0/app
+    Start  29: libslic3r:Native 3MF preserves planar material settings only on the opted-in object
+1/5 Test  #29: libslic3r:Native 3MF preserves planar material settings only on the opted-in object ......   Passed    0.10 sec
+    Start 357: fff_print:Compare opt-in ordered volumes and end-face painting against a solid control
+2/5 Test #357: fff_print:Compare opt-in ordered volumes and end-face painting against a solid control ...   Passed   12.69 sec
+    Start 358: fff_print:H2D offline machine geometry loads and contains both planar tools
+3/5 Test #358: fff_print:H2D offline machine geometry loads and contains both planar tools ..............   Passed    2.94 sec
+    Start 359: fff_print:A gradual material transition routes an intact solid by signed distance
+4/5 Test #359: fff_print:A gradual material transition routes an intact solid by signed distance ........   Passed    1.46 sec
+    Start 360: fff_print:A STEP assembly transitions across its selected shared face
+5/5 Test #360: fff_print:A STEP assembly transitions across its selected shared face ....................   Passed    0.38 sec
+
+100% tests passed, 0 tests failed out of 5
+
+Total Test time (real) =  17.67 sec
+
+[Standalone rerun] p2-012-standalone.log
+Test project <repo>/build-phase0/planar
+    Start 1: Cuboids retain distinct bounds and share the selected interface
+1/9 Test #1: Cuboids retain distinct bounds and share the selected interface .......   Passed    0.02 sec
+    Start 2: Planar fractions span a symmetric transition of the requested width
+2/9 Test #2: Planar fractions span a symmetric transition of the requested width ...   Passed    0.01 sec
+    Start 3: A scaled oblique normal still measures physical distance
+3/9 Test #3: A scaled oblique normal still measures physical distance ..............   Passed    0.01 sec
+    Start 4: Zero width selects B on the plane
+4/9 Test #4: Zero width selects B on the plane .....................................   Passed    0.01 sec
+    Start 5: Invalid parameters and non-finite samples are rejected
+5/9 Test #5: Invalid parameters and non-finite samples are rejected ................   Passed    0.01 sec
+    Start 6: Ordered thresholds repeat across signed indices and phase shifts
+6/9 Test #6: Ordered thresholds repeat across signed indices and phase shifts ......   Passed    0.01 sec
+    Start 7: Every complete period rounds uniform fractions to the nearest cell
+7/9 Test #7: Every complete period rounds uniform fractions to the nearest cell ....   Passed    0.01 sec
+    Start 8: The two cuboids receive labels only at occupied cell centers
+8/9 Test #8: The two cuboids receive labels only at occupied cell centers ..........   Passed    0.01 sec
+    Start 9: Ordered cells reject invalid coordinates and fractions
+9/9 Test #9: Ordered cells reject invalid coordinates and fractions ................   Passed    0.01 sec
+
+100% tests passed, 0 tests failed out of 9
+
+Total Test time (real) =   0.13 sec
+
+[Historical direct-region audit] p2-004-targeted.log
+Test project <repo>/build-phase0/app
+    Start  29: libslic3r:Native 3MF preserves experimental planar regions only on the opted-in object
+1/2 Test  #29: libslic3r:Native 3MF preserves experimental planar regions only on the opted-in object ...   Passed    0.06 sec
+    Start 356: fff_print:Compare opt-in ordered volumes and end-face painting against a solid control
+2/2 Test #356: fff_print:Compare opt-in ordered volumes and end-face painting against a solid control ...   Passed    4.50 sec
+
+100% tests passed, 0 tests failed out of 2
+
+Total Test time (real) =   4.63 sec
+
+[Full publication CTest summary] p2-publication-ctest.log
+98% tests passed, 8 tests failed out of 393
+
+Total Test time (real) =  84.48 sec
+
+The following tests FAILED:
+	 39 - libslic3r:Scenario: DynamicPrintConfig serialization (Failed)
+	169 - libslic3r:m1: compute uses num_physical bound, remove_physical uses kMax=64 (differential) (Failed)
+	259 - libslic3r:Scenario: Placeholder parser scripting (SEGFAULT)
+	313 - libslic3r:Complete cached slots override direct nozzle data atomically (Failed)
+	346 - fff_print:Persistent image maps generate geometry-first perimeter path modulation V2 (Failed)
+	368 - fff_print:Mixed print uses the highest bed temperature (Failed)
+	369 - fff_print:Brim-introduced extruder is covered when wall_loops is zero (Failed)
+	370 - fff_print:bed_temperature_initial_layer_single expands to the max (Failed)
+Errors while running CTest
+
+[Cube route horizontal] p2-012-horizontal-verbose.log
+  audit.max_wrong_side_mm := 0.0
+  audit.mixed_layers := 32
+  audit.tool_changes := 41
+  short_model_moves := 862 (0x35e)
+All tests passed (291849 assertions in 1 test case)
+  Derived max absolute B error across seven bands (percentage points)
+  Model: 0.750163; outer walls: 1.248874
+
+[Cube route tilted] p2-012-tilted-verbose.log
+  audit.max_wrong_side_mm := 0.00033952107842516
+  audit.mixed_layers := 100
+  audit.tool_changes := 100
+  short_model_moves := 1029 (0x405)
+All tests passed (348103 assertions in 1 test case)
+  Derived max absolute B error across seven bands (percentage points)
+  Model: 0.599251; outer walls: 3.054810
+
+[Cube route xy] p2-012-xy-verbose.log
+  audit.max_wrong_side_mm := 0.00040130615234357
+  audit.mixed_layers := 100
+  audit.tool_changes := 100
+  short_model_moves := 1195 (0x4ab)
+All tests passed (351114 assertions in 1 test case)
+  Derived max absolute B error across seven bands (percentage points)
+  Model: 2.676432; outer walls: 6.250000
+
+[STEP raw-command audit] p2-012-step-audit.log
+  audit.max_wrong_side_mm := 0.00047060947910182
+  audit.mixed_layers := 20
+  audit.tool_changes := 20
+All tests passed (64414 assertions in 1 test case)

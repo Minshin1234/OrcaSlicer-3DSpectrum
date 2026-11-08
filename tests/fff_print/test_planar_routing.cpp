@@ -18,6 +18,7 @@
 #include <boost/filesystem.hpp>
 
 #include <array>
+#include <cstdlib>
 #include <fstream>
 #include <limits>
 #include <set>
@@ -169,7 +170,8 @@ struct Metrics
 struct TemporaryGcode
 {
     explicit TemporaryGcode(const char* pattern = "planar-routing-%%%%-%%%%-%%%%.gcode")
-        : path(boost::filesystem::temp_directory_path() / boost::filesystem::unique_path(pattern)) {}
+        : path(boost::filesystem::temp_directory_path() / boost::filesystem::unique_path(pattern))
+    {}
     const boost::filesystem::path path;
     ~TemporaryGcode()
     {
@@ -180,30 +182,29 @@ struct TemporaryGcode
 
 struct CommandAudit
 {
-    std::set<unsigned int> tools;
+    std::set<unsigned int>                tools;
     std::map<int, std::set<unsigned int>> layer_tools;
-    std::array<double, 2> pure_length{};
-    std::array<double, 2> opposite_side_length{};
-    double max_wrong_side_mm = 0.;
-    size_t tool_changes = 0;
-    size_t mixed_layers = 0;
+    std::array<double, 2>                 pure_length{};
+    std::array<double, 2>                 opposite_side_length{};
+    double                                max_wrong_side_mm = 0.;
+    size_t                                tool_changes      = 0;
+    size_t                                mixed_layers      = 0;
 };
 
-CommandAudit audit_offline_commands(const std::string& path, const Transition& spec, const Transform3d& placement,
-                                    const BoundingBoxf& reach)
+CommandAudit audit_offline_commands(const std::string& path, const Transition& spec, const Transform3d& placement, const BoundingBoxf& reach)
 {
-    const Vec3d center = placement * spec.point;
-    const Vec3d normal = (placement.linear().inverse().transpose() * spec.normal).normalized();
-    const auto a = spec.filaments[0] - 1;
-    const auto b = spec.filaments[1] - 1;
-    CommandAudit audit;
+    const Vec3d                 center = placement * spec.point;
+    const Vec3d                 normal = (placement.linear().inverse().transpose() * spec.normal).normalized();
+    const auto                  a      = spec.filaments[0] - 1;
+    const auto                  b      = spec.filaments[1] - 1;
+    CommandAudit                audit;
     std::optional<unsigned int> active_tool;
-    ExtrusionRole role = erNone;
-    bool relative_e = false;
-    bool offline_marker = false;
-    GCodeReader reader;
+    ExtrusionRole               role           = erNone;
+    bool                        relative_e     = false;
+    bool                        offline_marker = false;
+    GCodeReader                 reader;
     REQUIRE(reader.parse_file(path, [&](const GCodeReader& state, const GCodeReader::GCodeLine& line) {
-        const std::string_view cmd = line.cmd();
+        const std::string_view cmd     = line.cmd();
         const std::string_view comment = line.comment();
         offline_marker |= comment == " H2D OFFLINE ONLY - DO NOT PRINT";
         if (comment.substr(0, 10) == " FEATURE: ")
@@ -234,12 +235,12 @@ CommandAudit audit_offline_commands(const std::string& path, const Transition& s
         CHECK(reach.contains(Vec2d(from.head<2>())));
         CHECK(reach.contains(Vec2d(to.head<2>())));
         CHECK(from.z() == Approx(to.z()).margin(0.001));
-        const double d0 = normal.dot(from - center);
-        const double d1 = normal.dot(to - center);
-        const double lo = std::min(d0, d1);
-        const double hi = std::max(d0, d1);
+        const double d0         = normal.dot(from - center);
+        const double d1         = normal.dot(to - center);
+        const double lo         = std::min(d0, d1);
+        const double hi         = std::max(d0, d1);
         const double half_width = 0.5 * spec.width;
-        const double length = line.dist_XY(state);
+        const double length     = line.dist_XY(state);
         if (*active_tool == a) {
             audit.max_wrong_side_mm = std::max(audit.max_wrong_side_mm, hi - half_width);
             if (hi < -half_width - 0.002)
@@ -267,14 +268,14 @@ CommandAudit audit_offline_commands(const std::string& path, const Transition& s
     return audit;
 }
 
-DynamicPrintConfig offline_h2d_config()
+DynamicPrintConfig offline_h2d_config(const char* filename = "Bambu Lab H2D 0.4 dual - offline.json")
 {
-    DynamicPrintConfig profile;
-    ConfigSubstitutionContext substitutions{ForwardCompatibilitySubstitutionRule::Disable};
+    DynamicPrintConfig                 profile;
+    ConfigSubstitutionContext          substitutions{ForwardCompatibilitySubstitutionRule::Disable};
     std::map<std::string, std::string> metadata;
-    std::string reason;
-    const std::string path = std::string(TEST_RESOURCES_DIR) + "/profiles/offline/Bambu Lab H2D 0.4 dual - offline.json";
-    const int status = profile.load_from_json(path, substitutions, false, metadata, reason);
+    std::string                        reason;
+    const std::string                  path   = std::string(TEST_RESOURCES_DIR) + "/profiles/offline/" + filename;
+    const int                          status = profile.load_from_json(path, substitutions, false, metadata, reason);
     INFO(reason);
     REQUIRE(status == 0);
     CHECK(substitutions.substitutions.empty());
@@ -327,7 +328,7 @@ Metrics audit(Route route, const DynamicPrintConfig* machine_overlay = nullptr)
         object.config.set_key_value(REGION_OPTION, new ConfigOptionFloats({8.0, 4.0, route == Route::Direct ? 1.0 : 0.5, 1.0}));
     }
     auto* instance = object.add_instance();
-    auto config = routing_config();
+    auto  config   = routing_config();
     if (machine_overlay) {
         config.apply(*machine_overlay);
         instance->set_offset({175.0, 160.0, 0.0});
@@ -510,8 +511,8 @@ TEST_CASE("Compare opt-in ordered volumes and end-face painting against a solid 
 
 TEST_CASE("H2D offline machine geometry loads and contains both planar tools", "[planar-routing][h2d-offline]")
 {
-    const auto profile = offline_h2d_config();
-    const auto* nozzle = profile.option<ConfigOptionFloats>("nozzle_diameter");
+    const auto  profile = offline_h2d_config();
+    const auto* nozzle  = profile.option<ConfigOptionFloats>("nozzle_diameter");
     REQUIRE(nozzle != nullptr);
     CHECK(nozzle->values == std::vector<double>{0.4, 0.4});
     const auto* height = profile.option<ConfigOptionFloat>("printable_height");
@@ -532,29 +533,159 @@ TEST_CASE("H2D offline machine geometry loads and contains both planar tools", "
     CHECK(m.tool_changes > 0);
 }
 
-TEST_CASE("A gradual material transition routes an intact solid by signed distance", "[planar-transition]")
+TEST_CASE("H2D offline process respects the generic acceleration cap", "[h2d-offline]")
 {
     Model model;
-    ModelObject& object = *model.add_object();
-    const ModelVolume& volume = *object.add_volume(make_cube(20, 20, 20));
-    ModelInstance& instance = *object.add_instance();
+    auto& object = *model.add_object();
+    object.add_volume(make_cube(10, 10, 4));
+    auto& instance = *object.add_instance();
+    instance.set_offset({175, 160, 0});
+    const Transform3d placement = instance.get_matrix();
+    const Transition  spec{placement.inverse() * object.instance_bounding_box(0).center(), Vec3d::UnitX(), 4., {1, 2}};
+    object.config.set_key_value(TRANSITION_OPTION, new ConfigOptionFloats(spec.serialize()));
+
+    auto config = routing_config();
+    config.apply(offline_h2d_config());
+    Print print;
+    print.set_status_silent();
+    print.apply(model, config);
+    StringObjectException original_warning{};
+    REQUIRE(print.validate(&original_warning).string.empty());
+    INFO(original_warning.string);
+    REQUIRE(original_warning.string.find("machine_max_acceleration_extruding") != std::string::npos);
+
+    config.apply(offline_h2d_config("H2D offline 0.20 mm - conservative.json"));
+    print.apply(model, config);
+    StringObjectException warning{};
+    REQUIRE(print.validate(&warning).string.empty());
+    INFO(warning.string);
+    CHECK(warning.string.empty());
+
+    print.process();
+    TemporaryGcode       gcode;
+    GCodeProcessorResult result;
+    print.export_gcode(gcode.path.string(), &result, nullptr);
+    const auto audit = audit_offline_commands(gcode.path.string(), spec, placement, BoundingBoxf({25, 0}, {325, 320}));
+    CHECK(audit.mixed_layers == 20);
+
+    const double cap = print.config().machine_max_acceleration_extruding.get_at(0);
+    REQUIRE(cap == 1500.);
+    size_t      acceleration_commands = 0;
+    GCodeReader reader;
+    REQUIRE(reader.parse_file(gcode.path.string(), [&](const GCodeReader&, const GCodeReader::GCodeLine& line) {
+        CHECK(line.cmd() != "M201");
+        if (line.cmd() != "M204")
+            return;
+        float value;
+        REQUIRE(line.has_value('S', value));
+        CHECK(value <= cap);
+        ++acceleration_commands;
+    }));
+    CHECK(acceleration_commands > 0);
+}
+
+TEST_CASE("H2D vendor export contract matches offline tool and reach invariants", "[h2d-offline]")
+{
+    TemporaryGcode     step_file("planar-vendor-assembly-%%%%-%%%%-%%%%.step");
+    const auto&        step_path = step_file.path;
+    STEPControl_Writer writer;
+    REQUIRE(writer.Transfer(BRepPrimAPI_MakeBox(gp_Pnt(163, 154, 0), 10, 12, 4).Shape(), STEPControl_AsIs) == IFSelect_RetDone);
+    REQUIRE(writer.Transfer(BRepPrimAPI_MakeBox(gp_Pnt(173, 154, 0), 14, 12, 4).Shape(), STEPControl_AsIs) == IFSelect_RetDone);
+    REQUIRE(writer.Write(step_path.string().c_str()) == IFSelect_RetDone);
+
+    Model model;
+    bool  cancelled = false;
+    long  faces     = -1;
+    REQUIRE(load_step(step_path.string().c_str(), &model, cancelled, 0.003, 0.5, false, nullptr, nullptr, faces));
+    REQUIRE_FALSE(cancelled);
+    REQUIRE(model.objects.size() == 1);
+    auto& object = *model.objects.front();
+    REQUIRE(object.volumes.size() == 2);
+    model.add_default_instances();
+    auto&             instance  = *object.instances.front();
+    const Transform3d placement = instance.get_matrix();
+
+    const auto face = find_shared_planar_interface(object, placement);
+    REQUIRE(face);
+    CHECK(face->point.isApprox(Vec3d(173, 160, 2), 1e-4));
+    CHECK(face->normal.isApprox(Vec3d::UnitX(), 1e-4));
+
+    for (auto* volume : object.volumes)
+        volume->config.set_key_value("extruder", new ConfigOptionInt(1));
+
+    Transition spec_ab{face->point, face->normal, 8., {1, 2}};
+    object.config.set_key_value(TRANSITION_OPTION, new ConfigOptionFloats(spec_ab.serialize()));
+
+    auto config = routing_config();
+    config.apply(offline_h2d_config());
+    config.apply(offline_h2d_config("H2D offline 0.20 mm - conservative.json"));
+
+    Print print;
+    print.set_status_silent();
+    print.apply(model, config);
+    StringObjectException warning{};
+    REQUIRE(print.validate(&warning).string.empty());
+    CHECK(warning.string.empty());
+
+    print.process();
+    TemporaryGcode       gcode_ab;
+    GCodeProcessorResult result;
+    print.export_gcode(gcode_ab.path.string(), &result, nullptr);
+
+    const BoundingBoxf shared_reach({25, 0}, {325, 320});
+    const auto         audit_ab = audit_offline_commands(gcode_ab.path.string(), spec_ab, placement, shared_reach);
+    CHECK(audit_ab.mixed_layers == 20);
+    CHECK(audit_ab.tools == std::set<unsigned int>{0, 1});
+
+    Transition spec_ba{face->point, face->normal, 8., {2, 1}};
+    object.config.set_key_value(TRANSITION_OPTION, new ConfigOptionFloats(spec_ba.serialize()));
+    print.apply(model, config);
+    print.process();
+    TemporaryGcode gcode_ba;
+    print.export_gcode(gcode_ba.path.string(), &result, nullptr);
+    const auto audit_ba = audit_offline_commands(gcode_ba.path.string(), spec_ba, placement, shared_reach);
+    CHECK(audit_ba.mixed_layers == 20);
+    CHECK(audit_ba.tools == std::set<unsigned int>{0, 1});
+
+    GCodeReader reader;
+    size_t      tool_changes = 0;
+    REQUIRE(reader.parse_file(gcode_ab.path.string(), [&](const GCodeReader&, const GCodeReader::GCodeLine& line) {
+        CHECK(line.cmd() != "M620");
+        CHECK(line.cmd() != "M621");
+        CHECK(line.cmd() != "G150.1");
+        CHECK(line.cmd() != "G150.2");
+        CHECK(line.cmd() != "G150.3");
+        if (line.cmd() == "T0" || line.cmd() == "T1")
+            ++tool_changes;
+    }));
+    CHECK(tool_changes >= 20);
+}
+
+TEST_CASE("A gradual material transition routes an intact solid by signed distance", "[planar-transition]")
+{
+    Model              model;
+    ModelObject&       object   = *model.add_object();
+    const ModelVolume& volume   = *object.add_volume(make_cube(20, 20, 20));
+    ModelInstance&     instance = *object.add_instance();
     instance.set_offset({100, 100, 0});
-    const BoundingBoxf3 bounds = object.instance_bounding_box(0);
-    const Transform3d transform = instance.get_matrix();
-    const Vec3d center = transform.inverse() * bounds.center();
-    Vec3d normal = Vec3d::UnitZ();
-    bool reverse_slots = false;
+    const BoundingBoxf3 bounds        = object.instance_bounding_box(0);
+    const Transform3d   transform     = instance.get_matrix();
+    const Vec3d         center        = transform.inverse() * bounds.center();
+    Vec3d               normal        = Vec3d::UnitZ();
+    bool                reverse_slots = false;
     SECTION("Horizontal plane") {}
-    SECTION("Tilted plane and reversed slots") {
-        normal = Vec3d(0.7, 0.35, 1.).normalized();
+    SECTION("Tilted plane and reversed slots")
+    {
+        normal        = Vec3d(0.7, 0.35, 1.).normalized();
         reverse_slots = true;
     }
-    SECTION("Diagonal XY gradient") {
-        normal = Vec3d(0.8, 0.6, 0.);
-    }
+    SECTION("Diagonal XY gradient") { normal = Vec3d(0.8, 0.6, 0.); }
 
+    const char*  benchmark_width = std::getenv("SLIC3R_TEST_PLANAR_WIDTH");
+    const double width           = benchmark_width ? std::stod(benchmark_width) : 8.;
+    REQUIRE((width == 4. || width == 8. || width == 12.));
     const unsigned int tool_b = reverse_slots ? 0 : 1;
-    const Transition spec{center, normal, 8., {2 - tool_b, 1 + tool_b}};
+    const Transition   spec{center, normal, width, {2 - tool_b, 1 + tool_b}};
     object.config.set_key_value(TRANSITION_OPTION, new ConfigOptionFloats(spec.serialize()));
     auto config = routing_config();
     config.apply(offline_h2d_config());
@@ -571,7 +702,7 @@ TEST_CASE("A gradual material transition routes an intact solid by signed distan
         CHECK(area_mm2(layer->lslices) == Approx(400.).margin(0.01));
     }
 
-    TemporaryGcode gcode;
+    TemporaryGcode       gcode;
     GCodeProcessorResult result;
     print.export_gcode(gcode.path.string(), &result, nullptr);
     const auto commands = audit_offline_commands(gcode.path.string(), spec, transform, BoundingBoxf({25, 0}, {325, 320}));
@@ -580,51 +711,51 @@ TEST_CASE("A gradual material transition routes an intact solid by signed distan
         CHECK(commands.mixed_layers == 100);
     }
     const Vec3d world_center = transform * center;
-    auto model_move = [](const auto& move) {
+    auto        model_move   = [](const auto& move) {
         return move.type == EMoveType::Extrude &&
-            (is_perimeter(move.extrusion_role) || is_infill(move.extrusion_role) || move.extrusion_role == erGapFill);
+               (is_perimeter(move.extrusion_role) || is_infill(move.extrusion_role) || move.extrusion_role == erGapFill);
     };
     struct Band
     {
-        double volume = 0.;
+        double volume   = 0.;
         double actual_b = 0.;
         double target_b = 0.;
     };
-    const std::array<double, 6> edges{-4., -3., -1., 1., 3., 4.};
-    std::array<Band, 7> bands;
-    std::array<Band, 7> wall_bands;
-    double total_extrusion = 0.;
-    double outer_extrusion = 0.;
-    size_t tool_changes = 0;
-    size_t short_model_moves = 0;
-    std::set<unsigned> wall_tools;
+    const std::array<double, 6> edges{-width / 2., -3. * width / 8., -width / 8., width / 8., 3. * width / 8., width / 2.};
+    std::array<Band, 7>         bands;
+    std::array<Band, 7>         wall_bands;
+    double                      total_extrusion   = 0.;
+    double                      outer_extrusion   = 0.;
+    size_t                      tool_changes      = 0;
+    size_t                      short_model_moves = 0;
+    std::set<unsigned>          wall_tools;
     for (size_t i = 1; i < result.moves.size(); ++i) {
         const auto& move = result.moves[i];
         tool_changes += move.type == EMoveType::Tool_change;
         if (!model_move(move))
             continue;
-        const double amount = move.delta_extruder;
+        const double amount   = move.delta_extruder;
         const double sample_z = move.position.z() - 0.5 * LAYER_HEIGHT;
-        Vec3d from = result.moves[i - 1].position.cast<double>();
-        Vec3d to = move.position.cast<double>();
-        from.z() = to.z() = sample_z;
+        Vec3d        from     = result.moves[i - 1].position.cast<double>();
+        Vec3d        to       = move.position.cast<double>();
+        from.z() = to.z()   = sample_z;
         const double length = (to - from).norm();
         short_model_moves += length > 0. && length < 0.2;
-        const bool outer_wall = move.extrusion_role == erExternalPerimeter;
-        const double d0 = normal.dot(from - world_center);
-        const double d1 = normal.dot(to - world_center);
+        const bool          outer_wall = move.extrusion_role == erExternalPerimeter;
+        const double        d0         = normal.dot(from - world_center);
+        const double        d1         = normal.dot(to - world_center);
         std::vector<double> cuts{0., 1.};
         for (double edge : edges)
             if (edge > std::min(d0, d1) && edge < std::max(d0, d1))
                 cuts.push_back((edge - d0) / (d1 - d0));
         std::sort(cuts.begin(), cuts.end());
         for (size_t j = 1; j < cuts.size(); ++j) {
-            const double d = d0 + (d1 - d0) * 0.5 * (cuts[j - 1] + cuts[j]);
-            const double e = amount * (cuts[j] - cuts[j - 1]);
-            const size_t band_id = std::upper_bound(edges.begin(), edges.end(), d) - edges.begin();
-            const double actual_b = move.extruder_id == tool_b ? e : 0.;
-            const double target_b = std::clamp(0.5 + d / spec.width, 0., 1.) * e;
-            auto accumulate = [&](Band& band) {
+            const double d          = d0 + (d1 - d0) * 0.5 * (cuts[j - 1] + cuts[j]);
+            const double e          = amount * (cuts[j] - cuts[j - 1]);
+            const size_t band_id    = std::upper_bound(edges.begin(), edges.end(), d) - edges.begin();
+            const double actual_b   = move.extruder_id == tool_b ? e : 0.;
+            const double target_b   = std::clamp(0.5 + d / spec.width, 0., 1.) * e;
+            auto         accumulate = [&](Band& band) {
                 band.volume += e;
                 band.actual_b += actual_b;
                 band.target_b += target_b;
@@ -641,15 +772,19 @@ TEST_CASE("A gradual material transition routes an intact solid by signed distan
     }
     CAPTURE(tool_changes, short_model_moves);
     CHECK(wall_tools == std::set<unsigned>{0, 1});
+    double max_model_error = 0.;
+    double max_wall_error  = 0.;
     for (size_t i = 0; i < bands.size(); ++i) {
         const auto& band = bands[i];
         REQUIRE(band.volume > 0.);
         const double actual = band.actual_b / band.volume;
         const double target = band.target_b / band.volume;
-        const Band& wall = wall_bands[i];
+        const Band&  wall   = wall_bands[i];
         REQUIRE(wall.volume > 0.);
         const double actual_wall = wall.actual_b / wall.volume;
         const double target_wall = wall.target_b / wall.volume;
+        max_model_error          = std::max(max_model_error, std::abs(actual - target));
+        max_wall_error           = std::max(max_wall_error, std::abs(actual_wall - target_wall));
         CAPTURE(i, actual, target, actual_wall, target_wall);
         const bool pure = i == 0 || i == bands.size() - 1;
         CHECK(actual == Approx(target).margin(pure ? 0.015 : 0.05));
@@ -663,7 +798,7 @@ TEST_CASE("A gradual material transition routes an intact solid by signed distan
     CHECK(object.instance_bounding_box(0).max.isApprox(bounds.max));
     print.apply(model, config);
     print.process();
-    TemporaryGcode plain_gcode;
+    TemporaryGcode       plain_gcode;
     GCodeProcessorResult plain;
     print.export_gcode(plain_gcode.path.string(), &plain, nullptr);
     double plain_total = 0.;
@@ -677,20 +812,32 @@ TEST_CASE("A gradual material transition routes an intact solid by signed distan
         }
     CHECK(total_extrusion == Approx(plain_total).epsilon(0.025));
     CHECK(outer_extrusion == Approx(plain_outer).epsilon(0.025));
+    if (benchmark_width) {
+        double flush_mm3 = 0.;
+        for (const auto& entry : result.print_statistics.flush_per_filament)
+            flush_mm3 += entry.second;
+        const size_t mode = static_cast<size_t>(PrintEstimatedStatistics::ETimeMode::Normal);
+        WARN("PLANAR_BENCH width_mm=" << width << " normal=" << normal.transpose() << " short_moves=" << short_model_moves
+                                      << " tool_changes=" << commands.tool_changes << " mixed_layers=" << commands.mixed_layers
+                                      << " max_model_error_pp=" << 100. * max_model_error << " max_wall_error_pp=" << 100. * max_wall_error
+                                      << " model_e_mm=" << total_extrusion << " control_e_mm=" << plain_total
+                                      << " estimated_s=" << result.print_statistics.modes[mode].time << " control_estimated_s="
+                                      << plain.print_statistics.modes[mode].time << " offline_flush_mm3=" << flush_mm3);
+    }
 }
 
 TEST_CASE("A STEP assembly transitions across its selected shared face", "[planar-transition][assembly-interface]")
 {
-    TemporaryGcode step_file("planar-interface-%%%%-%%%%-%%%%.step");
-    const auto& step_path = step_file.path;
+    TemporaryGcode     step_file("planar-interface-%%%%-%%%%-%%%%.step");
+    const auto&        step_path = step_file.path;
     STEPControl_Writer writer;
     REQUIRE(writer.Transfer(BRepPrimAPI_MakeBox(gp_Pnt(12, 8, 0), 10, 12, 4).Shape(), STEPControl_AsIs) == IFSelect_RetDone);
     REQUIRE(writer.Transfer(BRepPrimAPI_MakeBox(gp_Pnt(22, 8, 0), 14, 12, 4).Shape(), STEPControl_AsIs) == IFSelect_RetDone);
     REQUIRE(writer.Write(step_path.string().c_str()) == IFSelect_RetDone);
 
     Model model;
-    bool cancelled = false;
-    long faces = -1;
+    bool  cancelled = false;
+    long  faces     = -1;
     REQUIRE(load_step(step_path.string().c_str(), &model, cancelled, 0.003, 0.5, false, nullptr, nullptr, faces));
     REQUIRE_FALSE(cancelled);
     REQUIRE(model.objects.size() == 1);
@@ -701,16 +848,16 @@ TEST_CASE("A STEP assembly transitions across its selected shared face", "[plana
     auto& instance = *object.instances.front();
     instance.set_offset({145, 120, 0});
     instance.set_rotation({0, 0, 0.31});
-    const Transform3d placement = instance.get_matrix();
-    auto body_bounds = [&](size_t idx) {
+    const Transform3d placement   = instance.get_matrix();
+    auto              body_bounds = [&](size_t idx) {
         const auto& volume = *object.volumes[idx];
         return volume.mesh().transformed_bounding_box(volume.get_matrix());
     };
-    const auto body0 = body_bounds(0);
-    const auto body1 = body_bounds(1);
-    const bool first_is_lower = body0.min.x() < body1.min.x();
-    const auto& lower = first_is_lower ? body0 : body1;
-    const auto& upper = first_is_lower ? body1 : body0;
+    const auto  body0          = body_bounds(0);
+    const auto  body1          = body_bounds(1);
+    const bool  first_is_lower = body0.min.x() < body1.min.x();
+    const auto& lower          = first_is_lower ? body0 : body1;
+    const auto& upper          = first_is_lower ? body1 : body0;
     REQUIRE(lower.min.x() == Approx(12.).margin(0.0001));
     REQUIRE(lower.max.x() == Approx(22.).margin(0.0001));
     REQUIRE(upper.min.x() == Approx(22.).margin(0.0001));
@@ -723,13 +870,13 @@ TEST_CASE("A STEP assembly transitions across its selected shared face", "[plana
     const Vec3d expected_normal = (first_is_lower ? 1. : -1.) * Vec3d::UnitX();
     CHECK(face->point.isApprox(Vec3d(22, 14, 2), 1e-6));
     CHECK(face->normal.isApprox(expected_normal, 1e-6));
-    Transition spec{face->point, face->normal, 8.,
-                    first_is_lower ? std::array<unsigned int, 2>{2, 1} : std::array<unsigned int, 2>{1, 2}};
-    auto* upper_volume = object.volumes[first_is_lower ? 1 : 0];
-    auto config = routing_config();
+    Transition spec{face->point, face->normal, 8., first_is_lower ? std::array<unsigned int, 2>{2, 1} : std::array<unsigned int, 2>{1, 2}};
+    auto*      upper_volume = object.volumes[first_is_lower ? 1 : 0];
+    auto       config       = routing_config();
     config.apply(offline_h2d_config());
 
-    SECTION("Contact face stays in place and both tools print each layer") {
+    SECTION("Contact face stays in place and both tools print each layer")
+    {
         object.config.set_key_value(TRANSITION_OPTION, new ConfigOptionFloats(spec.serialize()));
         Print print;
         print.set_status_silent();
@@ -742,25 +889,25 @@ TEST_CASE("A STEP assembly transitions across its selected shared face", "[plana
             CHECK(layer->lslices.size() == 1);
             CHECK(area_mm2(layer->lslices) == Approx(288.).margin(0.02));
         }
-        TemporaryGcode gcode;
+        TemporaryGcode       gcode;
         GCodeProcessorResult result;
         print.export_gcode(gcode.path.string(), &result, nullptr);
         const auto audit = audit_offline_commands(gcode.path.string(), spec, placement, BoundingBoxf({25, 0}, {325, 320}));
         CHECK(audit.mixed_layers == 20);
         CHECK(audit.opposite_side_length[0] > 0.);
         CHECK(audit.opposite_side_length[1] > 0.);
-        const Transform3d to_local = placement.inverse();
-        size_t internal_walls = 0;
-        size_t wall_moves = 0;
+        const Transform3d to_local       = placement.inverse();
+        size_t            internal_walls = 0;
+        size_t            wall_moves     = 0;
         for (size_t i = 1; i < result.moves.size(); ++i) {
             const auto& move = result.moves[i];
             if (move.type != EMoveType::Extrude || !is_perimeter(move.extrusion_role))
                 continue;
             ++wall_moves;
             const Vec3d from = to_local * result.moves[i - 1].position.cast<double>();
-            const Vec3d to = to_local * move.position.cast<double>();
-            if (std::abs(from.x() - 22.) < 1. && std::abs(to.x() - 22.) < 1. &&
-                std::min(from.y(), to.y()) < 19. && std::max(from.y(), to.y()) > 9.)
+            const Vec3d to   = to_local * move.position.cast<double>();
+            if (std::abs(from.x() - 22.) < 1. && std::abs(to.x() - 22.) < 1. && std::min(from.y(), to.y()) < 19. &&
+                std::max(from.y(), to.y()) > 9.)
                 ++internal_walls;
         }
         CHECK(wall_moves > 0);
@@ -772,20 +919,21 @@ TEST_CASE("A STEP assembly transitions across its selected shared face", "[plana
         CHECK(instance.get_matrix().matrix().isApprox(placement.matrix()));
     }
 
-    SECTION("Alignment follows volume order under transformed placement") {
+    SECTION("Alignment follows volume order under transformed placement")
+    {
         std::swap(object.volumes[0], object.volumes[1]);
         const Transform3d scaled_placement = placement * Eigen::AngleAxisd(0.47, Vec3d::UnitY()) * Eigen::Scaling(1.3, 0.6, 1.8);
-        const auto reversed = find_shared_planar_interface(object, scaled_placement);
+        const auto        reversed         = find_shared_planar_interface(object, scaled_placement);
         REQUIRE(reversed);
         CHECK(reversed->point.isApprox(face->point, 1e-6));
         CHECK(reversed->normal.isApprox(-expected_normal, 1e-6));
         CHECK_FALSE(has_transition(object));
     }
 
-    SECTION("A gap, overlap, partial face, edge contact or shifted plane is rejected") {
-        const Vec3d original_offset = upper_volume->get_offset();
-        const std::array<Vec3d, 5> displacements{
-            Vec3d(0.1, 0, 0), Vec3d(-0.1, 0, 0), Vec3d(0, 0.1, 0), Vec3d(0, 12, 0), Vec3d::Zero()};
+    SECTION("A gap, overlap, partial face, edge contact or shifted plane is rejected")
+    {
+        const Vec3d                original_offset = upper_volume->get_offset();
+        const std::array<Vec3d, 5> displacements{Vec3d(0.1, 0, 0), Vec3d(-0.1, 0, 0), Vec3d(0, 0.1, 0), Vec3d(0, 12, 0), Vec3d::Zero()};
         for (size_t i = 0; i < displacements.size(); ++i) {
             CAPTURE(i);
             upper_volume->set_offset(original_offset + displacements[i]);
