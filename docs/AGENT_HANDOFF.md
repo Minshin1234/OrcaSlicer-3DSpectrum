@@ -2,8 +2,9 @@
 
 - **Date** — 2026-11-07 EST
 - **Agent** — Codex
-- **Tasks** — P2-011 shared-face alignment and P0-003 source snapshot reconciliation
+- **Tasks** — P2-015 H2D vendor export audit and cross-hotend comparison
 - **Git** — The project snapshot is based on the existing GitHub `main` history at FullSpectrum `v0.9.14` (`cc152a84dd`). Build outputs remain under ignored `build-phase0/`.
+- **Milestone handoff** — Push validated major changes to a `codex/` task branch and record the branch and commit here. See [agent instructions](../AGENTS.md#stage-and-push-major-changes).
 
 ## Completed offline
 
@@ -15,11 +16,17 @@ The raw-command audit verified generic T0/T1 assignment and extrusion endpoints 
 
 In P2-011, **Align to shared face** positions the preview plane on the confirmed contact, with A on the first part's side and B on the second. **Apply transition** still saves the setting. The STEP regression uses the detected plane for the existing continuous-envelope and G-code checks, and covers reversed part order, rotated and scaled placement, and invalid contacts. The three targeted tests and nine standalone tests passed. Full CTest passed 385 of 393 with the same eight failures.
 
+In P2-014 and P2-015, the offline acceleration preset was verified and the resolved Bambu Studio v02.09.01.70 G-code was audited for the 24 × 12 × 4 mm assembly fixture across both slot assignments (`ab` and `ba`). Filament slot 1 maps to Tool 0 (`T0 H-1`), and slot 2 maps to Tool 1 (`T1 H-1`). Both model and prime tower bounds remain within the physical shared reach (`[25, 325]` × `[0, 320]`). The prime tower consumes 491.06 mm of purge filament across 20 layers (124.7% overhead). Automated regression verified tool invariants, shared reach, and suppression of proprietary vendor macros in the offline overlay. Full CTest passed 387 of 395 with the same eight baseline failures, and the standalone suite passed 9 of 9.
+
 ## Next action
 
-P2-014 is on `codex/p2-014-h2d-offline-qualification`. The [qualification report](test-results/P2-014-h2d-offline-qualification.md) records the pinned vendor contract and the tested process preset that clears the offline warning. The five focused and nine standalone cases passed. Full CTest passed 386 of 394 with the same eight baseline failures. Obtain a known-good, resolved Bambu Studio export for the target H2D firmware and both filament assignments before implementing native commands.
+P2-015 is on `codex/p2-015-h2d-vendor-audit`. The [audit report](test-results/P2-015-h2d-vendor-export-audit.md) records the tool mapping (`T0/T1 H-1`), coordinate bounds, macro contract (`M620`/`M621`/`G150.1`), and purge budget. The automated regression case passed.
 
-P2-013 is on `codex/p2-013-toolpath-benchmark`. The [benchmark report](test-results/P2-013-toolpath-benchmark.md) includes the repeatable width sweep and the decision to keep the 1.2 mm grid. The restored build passed 385 of 393 CTest cases with the same eight baseline failures and 9 of 9 standalone cases. Use the [P2-012 baseline](DOCUMENTATION.md#entry-p2-20261107-13--planar-transition-manufacturability-baseline) to compare any localized cleanup. Keep direct-region continuity and footprint results separate from the current path-assignment checks. P3-001 remains gated by machine-specific offline review and human authorization.
+P2-014 is on `codex/p2-014-h2d-offline-qualification`. The [qualification report](test-results/P2-014-h2d-offline-qualification.md) records the pinned vendor contract and the tested process preset that clears the offline warning.
+
+P2-013 is on `codex/p2-013-toolpath-benchmark`. The [benchmark report](test-results/P2-013-toolpath-benchmark.md) includes the repeatable width sweep and the decision to keep the 1.2 mm grid. Use the [P2-012 baseline](DOCUMENTATION.md#entry-p2-20261107-13--planar-transition-manufacturability-baseline) to compare any localized cleanup.
+
+Before physical execution on an H2D printer (Phase 3 / P3-001), record the specific machine serial, firmware version, and installed hotends, review the generated machine-specific tool-change sequence offline, and obtain human operator authorization.
 
 The P2-011 Windows build is under `build-phase0/p2-011-preview/`. Use `--datadir` with `build-phase0/p2-011-h2d-data/` to load the offline H2D profile. The `[assembly-interface]` test generates the same two-body model as the [saved STEP fixture](../tests/data/planar_gradient/SharedFace.step). If Cut is hidden, turn on **Advance** in Prepare.
 

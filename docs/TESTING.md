@@ -114,3 +114,9 @@ For the desktop offline preview, use **File → Import → Import Configs** to i
 ```powershell
 ctest --test-dir build-phase0/app -C Release -R 'H2D offline' --output-on-failure --no-tests=error
 ```
+
+To run the full H2D suite including the vendor export contract audit across both standard and reversed filament slots:
+
+```powershell
+ctest --test-dir build-phase0/app -C Release -R 'H2D vendor export contract|H2D offline' --output-on-failure --no-tests=error
+```

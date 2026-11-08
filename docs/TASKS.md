@@ -4,7 +4,7 @@
 | --- | --- | --- | --- |
 | P0-001 | Done | Document local provenance, source map, risks and cross-agent workflow. | Source paths, checked remote refs, decisions and handoff present. |
 | P0-002 | Done | Establish dependency, application and Catch2 baseline through CMake. | Release app and five existing test targets built. CTest ran 385 cases with 377 passes and eight reproducible failures. |
-| P0-003 | Done | Reconcile the source snapshot with the configured GitHub repository. | Compared the whole working tree with `cc152a84dd`. All baseline paths were present. The project delta uses the existing history as its parent. |
+| P0-003 | Done | Reconcile the source snapshot with the configured GitHub repository. | Published the project delta on the existing history as `0c59c8fb78`. [Agent instructions](../AGENTS.md#stage-and-push-major-changes) define how to push future major changes for review. |
 | P0-004 | Open | Triage the eight Windows baseline failures before establishing a clean regression gate. | Reproduce the cases and document causes or verified fixes. |
 | P1-001 | Done | Add pure C++17 planar fraction sampler and generated two-cuboid fixture in a standalone testable target. | Known relative bounds preserved. Tests cover center, transition edges, monotonicity, sharp split, invalid width and non-finite inputs. |
 | P1-002 | Done | Add deterministic ordered 3D threshold assignment over occupied cells. | Identical input gives identical labels. Endpoints remain pure, no labels outside occupancy, and uniform fractions have a documented complete-period error bound. |
@@ -23,6 +23,7 @@
 | P2-012 | Baseline recorded | Preserve the planar transition manufacturability baseline. | Pin the source revision, fixtures, test evidence and desktop preview in the [engineering log](DOCUMENTATION.md#entry-p2-20261107-13--planar-transition-manufacturability-baseline). |
 | P2-013 | Benchmark complete | Compare toolpath optimization candidates before H2D qualification. | [Grid-pitch benchmark](test-results/P2-013-toolpath-benchmark.md) covers three widths and three orientations with an ordinary control. The coarser pitch reduced short moves but failed the 4 mm diagonal outer-wall check. The production pitch stays at 1.2 mm. |
 | P2-014 | Offline checks passed | Compare the H2D command contract and resolve the offline acceleration warning. | The [qualification report](test-results/P2-014-h2d-offline-qualification.md) records the source comparison and a tested companion process. A resolved vendor export for the target firmware is needed before native G-code qualification. |
+| P2-015 | Offline audit passed | Audit resolved Bambu Studio H2D exports against 3DSpectrum offline toolpaths. | Resolved vendor G-code from Bambu Studio v02.09.01.70 on the 24×12×4 mm assembly audited for both AB and BA assignments. Tool mapping (`T0/T1 H-1`), shared reach, and prime tower overhead documented in [P2-015 report](test-results/P2-015-h2d-vendor-export-audit.md). Automated regression passed. |
 | P3-001 | Gated | Qualify a specific printer, firmware, nozzle pair and transfer method. | Reviewed machine-specific G-code and human authorization precede motion. Physical results require inspected specimens. |
 
 ## P2-007 implementation plan

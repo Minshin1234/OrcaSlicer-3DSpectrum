@@ -13,12 +13,16 @@ Develop opt-in, interface-aware material gradients on FullSpectrum. Start with t
 
 - Require explicit consent to blend across an interface. Touching parts may need to stay separate.
 - Use the existing model, assignment, slicing and export systems wherever they meet the requirements. Keep the first prototype independent of printer behavior.
-- Obtain human approval before major rewrites, scope changes, destructive operations, significant merges, publication, public pushes, external licensing decisions or changes to critical printer safety behavior. Commit only when explicitly authorized.
+- Obtain human approval before major rewrites, scope changes, destructive operations, significant merges, pushes to `main`, releases, other public pushes, external licensing decisions or changes to critical printer safety behavior. The milestone workflow below authorizes commits and pushes to task branches.
 - Inspect printer-specific output offline. Obtain human approval before unverified commands or hardware movement. Report physical validation only after printing and inspecting a specimen.
 
 ## End a session
 
 Review Git status and changes. Run relevant checks, record actual results and artifacts, append a chronological entry to the [engineering log](docs/DOCUMENTATION.md), and update [tasks](docs/TASKS.md), [state](docs/PROJECT_STATE.md) and [handoff](docs/AGENT_HANDOFF.md). Record failures and remaining uncertainty. The repository is the source of truth across agent environments.
+
+## Stage and push major changes
+
+After each major implementation milestone, run the relevant checks and review the diff. Stage only files that belong to the task, commit them, and push the commit to a `codex/` task branch on the configured GitHub remote for review. Report the branch, commit, and check results in the handoff. Keep unrelated local changes, credentials, and build outputs out of the commit. A push to `main` or a release requires separate approval.
 
 
 # Repository Guidelines

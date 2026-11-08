@@ -319,6 +319,10 @@ Compared the complete local source snapshot with the existing FullSpectrum histo
 
 All nine README relative links resolved. The standalone suite passed 9 of 9. Full Windows Release CTest passed 385 of 393 in 84.48 seconds, with the same eight failures as P2-011. This source publication skips push-triggered GitHub workflows because the inherited build workflow can also publish binaries.
 
+## Entry P0-20261107-12 — Milestone handoff workflow
+
+Added a standing instruction to validate major changes, stage task files, commit, and push to a `codex/` task branch. The handoff records the branch, commit, and checks. Approval remains separate for pushes to `main` and releases. This update changes project documentation only.
+
 ## Entry P2-20261107-13 — Planar transition manufacturability baseline
 
 - **Date** — 2026-11-07 EST
@@ -397,3 +401,19 @@ Compared the pinned vendor preset, exporter and nozzle-mapping code with the gen
 Added a conservative offline process preset and a regression that reproduces the original validation warning, clears it, and checks the generated commands. The 20-layer test used both generic tools on every layer, retained the offline marker and emitted accelerations of 300, 500 and 1,500 mm/s². The preset is separate from the machine overlay and the P2-013 benchmark inputs.
 
 The Windows Release FFF target rebuilt. All five focused cases passed, all nine standalone cases passed, and full CTest passed 386 of 394 in 82.33 seconds with the same eight baseline failures. See the [qualification report](test-results/P2-014-h2d-offline-qualification.md). Raw logs are under ignored `build-phase0/p2-014-*`.
+
+## Entry P2-20261107-16 — H2D vendor export audit and cross-hotend comparison
+
+- **Date** — 2026-11-07 EST
+- **Task** — P2-015
+- **Branch** — `codex/p2-015-h2d-vendor-audit`
+
+Audited the resolved vendor G-code generated offline by Bambu Studio v02.09.01.70 for the dual 0.4 mm H2D against 3DSpectrum's offline toolpaths. Evaluated the 24 × 12 × 4 mm reference assembly fixture (10 × 12 × 4 mm lower solid and 14 × 12 × 4 mm upper solid) under both standard (`ab`: filaments 1, 2) and reversed (`ba`: filaments 2, 1) slot assignments.
+
+The vendor audit confirmed that:
+1. Tool mapping commands emit `T0 H-1` for filament slot 1 and `T1 H-1` for filament slot 2, with `H-1` signifying static 1:1 hardware nozzle pairing.
+2. The entire model envelope (X = [163.21, 186.79], Y = [154.21, 165.79]) and the prime tower footprint (X = [224.95, 249.30], Y = [273.46, 296.34]) stay strictly inside the shared reach of both hotends (`X = [25, 325], Y = [0, 320]`).
+3. Slicing with active prime tower requires 491.06 mm of purge extrusion across 20 layers for 393.71 mm of model extrusion (a 124.7% purge overhead).
+4. 3DSpectrum's conservative offline overlay (`H2D offline 0.20 mm - conservative.json`) cleanly suppresses proprietary vendor macros (`M620`, `M621`, `G150.1`), caps acceleration at 1,500 mm/s², and isolates mathematical gradient evaluation from unverified physical machine motion.
+
+Added an automated regression case `H2D vendor export contract matches offline tool and reach invariants` to `tests/fff_print/test_planar_routing.cpp`. The test verifies automated shared-face alignment, dual-tool coverage, reach containment, reversed slot invariance, and macro suppression. Full CTest passed 387 of 395 in 68.57 seconds with the same eight baseline failures. Standalone suite passed 9 of 9. See the [qualification report](test-results/P2-015-h2d-vendor-export-audit.md).
