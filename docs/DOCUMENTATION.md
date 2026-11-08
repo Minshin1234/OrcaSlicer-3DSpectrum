@@ -428,6 +428,10 @@ Verified the official Bambu Studio 02.09.01.70 portable release digest and regen
 
 The audit rejected swapped inputs, a mismatched tool-change completion, a synthetic extrusion outside the assigned body, and the original export with the unexpected plate. The four focused Windows Release cases and all nine standalone tests passed. This follow-up changes the audit and documentation. Hardware qualification remains gated.
 
+## Entry P2-20261107-18 — README maintenance
+
+Added a standing README review to `AGENTS.md` and updated the README with the STEP fixture, offline process setup, and the scope of the H2D reference audit. The README now distinguishes the tested logical tool assignments from hardware qualification.
+
 ## Entry P2-20261107-19 — Import and append STEP components
 
 - **Agent** — Codex
@@ -447,3 +451,15 @@ The Windows Release app and test targets built successfully. Full CTest passed 3
 In the rebuilt desktop app, batch import combined `base.step` and `joint.STP` into one 16 × 12 × 4 mm object. The Objects panel kept both body names. After assigning the joint to slot 2, **Add part → Load** appended `finger.step` at its CAD coordinates and preserved the joint assignment. The [offline Preview](assets/p2-017-step-components-preview.jpg) shows the slot 2 joint between the two slot 1 bodies across 20 layers. The preview used the generic offline H2D profile at 0.2 mm. The selected process preset showed the existing acceleration warning in Prepare, and offline slicing completed.
 
 P2-018 starts with an object-local, finite manual plane and a backward-compatible full-object default. P2-019 then uses the materials of two selected components to drive a planar transition.
+
+## Entry P2-20261108-01 — Slice touching STEP imports as one graded object
+
+- **Task** — P2-017 follow-up
+- **Base** — `27c88f2e11`
+- **Implementation** — `36e2d6bb03`
+
+The batch STEP import prompt now names the **Import as one object** and **Import separately** actions and points users to **Material transition** for a shared flat face. Grouping retains the source volumes in their CAD positions. The transition remains an explicit choice, with both bodies on the same base filament and the two gradient filaments selected in the transition tool.
+
+The Windows Release app and FFF test target built. The initial link was blocked by the previous offline test window and succeeded after closing it. Five focused CTest cases passed. The shared-face regression ran for both a multi-body STEP and separately written STEP files. It verified a single contour per layer, both logical tools on all 20 layers and zero internal wall moves at the join. In the desktop app, **Import as one object** grouped `base.step` and `joint.STP`, **Align to shared face** placed the midpoint at plate X = 177.00 mm, and the applied 8 mm transition sliced offline with both filament slots. Local logs are under `build-phase0/p2-017-gradient-import-*.log`.
+
+The pre-push rerun passed 388 of 396 Windows Release CTest cases and reproduced the same eight named failures and outcomes as the `main` baseline, including the placeholder parser crash. The standalone suite passed 9 of 9. The full run is recorded locally in `build-phase0/p2-017-push-ctest.log`.

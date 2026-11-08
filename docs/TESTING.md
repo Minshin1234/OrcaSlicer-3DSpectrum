@@ -63,7 +63,9 @@ The executable creates the output directory and writes `planar-preview.svg` and 
 
 ## Audit STEP, native 3MF and separate STL placement
 
-To check separate STEP components in Prepare, select only the STEP files in **Import** and confirm **Keep STEP component placement** when they share a CAD origin. The Objects list should show one object with individually named parts. Assign two filament slots, move or rotate the whole object, save a native 3MF, and reopen it. Use **Add part → Load** and select a third STEP from the same CAD frame. Confirm its placement relative to the existing parts. Move an individual existing part in a multi-part assembly and check that a later shared-frame append reports the inconsistent frame.
+To check separate STEP components in Prepare, select only the STEP files in **Import** and choose **Import as one object** when they share a CAD origin. The Objects list should show one object with individually named parts. Assign two filament slots, move or rotate the whole object, save a native 3MF, and reopen it. Use **Add part → Load** and select a third STEP from the same CAD frame. Confirm its placement relative to the existing parts. Move an individual existing part in a multi-part assembly and check that a later shared-frame append reports the inconsistent frame.
+
+For a gradient, start with two parts that touch across a complete flat face. Keep the same base filament and process settings on both bodies. Open **Cut → Material transition**, select **Align to shared face**, choose two distinct filaments and a width, and select **Apply transition**. The `[assembly-interface]` FFF case exercises both a multi-body STEP and two separate STEP files grouped through the same component-copy routine as import. It checks one slice contour per layer, no internal wall at the joint, both tools on each layer, and rejection of gaps, overlap, partial faces and edge contact.
 
 The `[placement-audit]` cases generate their inputs with OpenCASCADE and the STL writer under a unique temporary directory. With the existing Windows Release app build configured for tests, run:
 

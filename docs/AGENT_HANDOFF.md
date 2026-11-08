@@ -20,6 +20,8 @@ In P2-014 and P2-015, the offline acceleration preset was verified and both Bamb
 
 P2-017 implementation `c40a405c12` is on `codex/p2-017-step-component-import`. The Release build, four focused placement cases and nine standalone cases passed. Full CTest passed 388 of 396 with the same eight baseline failures. Use the [STEP placement checks](TESTING.md#audit-step-native-3mf-and-separate-stl-placement) to reproduce the native 3MF regression and the [offline preview](assets/p2-017-step-components-preview.jpg).
 
+The P2-017 follow-up (`36e2d6bb03`) adds a named **Import as one object** choice and verifies the transition from separate STEP files through offline G-code. The desktop app aligned and sliced an 8 mm band on the shared face. Five focused CTest cases passed. Keep both bodies on the same base filament for this route and select A and B in the transition tool.
+
 ## Next action
 
 Start P2-018 with the saved plane footprint and rotated object-fit math in the [shared field architecture](ARCHITECTURE.md#step-components-and-shared-material-fields). Preserve the original nine-value transition setting and qualify finite masks on a single solid first.

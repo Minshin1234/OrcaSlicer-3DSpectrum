@@ -20,6 +20,8 @@ Develop opt-in, interface-aware material gradients on FullSpectrum. Start with t
 
 Review Git status and changes. Run relevant checks, record actual results and artifacts, append a chronological entry to the [engineering log](docs/DOCUMENTATION.md), and update [tasks](docs/TASKS.md), [state](docs/PROJECT_STATE.md) and [handoff](docs/AGENT_HANDOFF.md). Record failures and remaining uncertainty. The repository is the source of truth across agent environments.
 
+Review [README.md](README.md) before wrapping up a change. Update it in the same change whenever the project's purpose, user workflow, build or setup steps, supported features, validation status, or limitations would otherwise be out of date. Verify any links you add or change.
+
 ## Stage and push major changes
 
 After each major implementation milestone, run the relevant checks and review the diff. Stage only files that belong to the task, commit them, and push the commit to a `codex/` task branch on the configured GitHub remote for review. Report the branch, commit, and check results in the handoff. Keep unrelated local changes, credentials, and build outputs out of the commit. A push to `main` or a release requires separate approval.
