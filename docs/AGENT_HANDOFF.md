@@ -2,7 +2,7 @@
 
 - **Date** — 2026-11-07 EST
 - **Agent** — Codex
-- **Tasks** — P2-016 verification of the P2-015 H2D reference exports
+- **Tasks** — P2-017 STEP component import and append
 - **Git** — The project snapshot is based on the existing GitHub `main` history at FullSpectrum `v0.9.14` (`cc152a84dd`). Build outputs remain under ignored `build-phase0/`.
 - **Milestone handoff** — Push validated major changes to a `codex/` task branch and record the branch and commit here. See [agent instructions](../AGENTS.md#stage-and-push-major-changes).
 
@@ -18,7 +18,11 @@ In P2-011, **Align to shared face** positions the preview plane on the confirmed
 
 In P2-014 and P2-015, the offline acceleration preset was verified and both Bambu Studio 02.09.01.70 slot assignments were exported for the 24 × 12 × 4 mm fixture. P2-016 independently verified the logical tool swap, 20 in-layer change sequences and the model and tower extrusion endpoints. The checked exports requested zero in-layer flush length and commanded 425.05 mm E in prime tower XY moves. Physical mapping and actual purge remain open. Four focused cases and the nine standalone cases passed on the follow-up. P2-015 recorded a full CTest result of 387 of 395 with the same eight baseline failures.
 
+P2-017 implementation `c40a405c12` is on `codex/p2-017-step-component-import`. The Release build, four focused placement cases and nine standalone cases passed. Full CTest passed 388 of 396 with the same eight baseline failures. Use the [STEP placement checks](TESTING.md#audit-step-native-3mf-and-separate-stl-placement) to reproduce the native 3MF regression and the [offline preview](assets/p2-017-step-components-preview.jpg).
+
 ## Next action
+
+Start P2-018 with the saved plane footprint and rotated object-fit math in the [shared field architecture](ARCHITECTURE.md#step-components-and-shared-material-fields). Preserve the original nine-value transition setting and qualify finite masks on a single solid first.
 
 P2-016 is on `codex/p2-016-h2d-reference-verification` and builds on P2-015 (`5ed8d4322d`). The [audit report](test-results/P2-015-h2d-vendor-export-audit.md) records the file hashes, role-aware measurements and audit command. The audit accepts the Textured PEI pair and rejects wrong assignment, mismatched change completion, out-of-component extrusion and an unexpected plate.
 

@@ -63,14 +63,16 @@ The executable creates the output directory and writes `planar-preview.svg` and 
 
 ## Audit STEP, native 3MF and separate STL placement
 
+To check separate STEP components in Prepare, select only the STEP files in **Import** and confirm **Keep STEP component placement** when they share a CAD origin. The Objects list should show one object with individually named parts. Assign two filament slots, move or rotate the whole object, save a native 3MF, and reopen it. Use **Add part → Load** and select a third STEP from the same CAD frame. Confirm its placement relative to the existing parts. Move an individual existing part in a multi-part assembly and check that a later shared-frame append reports the inconsistent frame.
+
 The `[placement-audit]` cases generate their inputs with OpenCASCADE and the STL writer under a unique temporary directory. With the existing Windows Release app build configured for tests, run:
 
 ```powershell
 cmake --build build-phase0/app --config Release --target libslic3r_tests --parallel 4
-ctest --test-dir build-phase0/app -C Release -R 'Nested STEP assembly|Separate STL files|Export\+Import geometry' --output-on-failure --no-tests=error
+ctest --test-dir build-phase0/app -C Release -R 'Nested STEP assembly|Separate STEP components|Separate STL files|Native 3MF preserves planar' --output-on-failure --no-tests=error
 ```
 
-See [P2-001 results](test-results/P2-001-placement.md) for fixture coordinates, config requirements and scope.
+See [P2-001 results](test-results/P2-001-placement.md) for the baseline fixtures and [P2-017 results](DOCUMENTATION.md#entry-p2-20261107-19--import-and-append-step-components) for the separate-file fixture and desktop preview.
 
 ## Compare offline planar toolpath routes
 

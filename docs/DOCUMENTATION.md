@@ -427,3 +427,23 @@ Added an automated regression case `H2D vendor export contract matches offline t
 Verified the official Bambu Studio 02.09.01.70 portable release digest and regenerated both reference exports with Textured PEI Plate selected explicitly. Added a read-only audit for the reference fixture. Both assignments had 20 matching in-layer change sequences, swapped logical tools across the two bodies and kept model and tower XY extrusion endpoints in their expected bounds. The `H-1` argument leaves the physical side implicit. Each export requested zero flush length in 40 fields and commanded 425.05 mm E on prime tower XY moves. See the [revised report](test-results/P2-015-h2d-vendor-export-audit.md) for the input hashes and definitions.
 
 The audit rejected swapped inputs, a mismatched tool-change completion, a synthetic extrusion outside the assigned body, and the original export with the unexpected plate. The four focused Windows Release cases and all nine standalone tests passed. This follow-up changes the audit and documentation. Hardware qualification remains gated.
+
+## Entry P2-20261107-19 — Import and append STEP components
+
+- **Agent** — Codex
+- **Task** — P2-017
+- **Branch** — `codex/p2-017-step-component-import`
+- **Base** — `4cb0f139b979bd08e8707f0c12913405c7cd797b`
+- **Implementation** — `c40a405c12`
+
+Batch import previously passed separate files through ordinary object placement. Add Part combined the meshes in each input file. The new STEP path in `Plater.cpp` asks whether the files share CAD coordinates and copies their original bodies before placing the assembly on the plate. `GUI_ObjectList.cpp` uses the same per-body copy path for Add Part. The user confirms the source coordinate system. If the selected object lacks a consistent STEP frame, the app directs the user to import separately, align with Move and Assemble.
+
+`STEP.cpp` and `STEP.hpp` recover the destination translation from each STEP body's current offset minus its stored source mesh offset. The bodies must agree within 0.0001 mm and retain their source orientation in object space. Whole-instance rotation and translation remain supported. Using existing volume names, source transforms and filament settings avoids a new project format and preserves the existing material controls.
+
+`test_assembly_placement.cpp` generates three named STEP files and checks a rotated native 3MF round trip, per-body material slots, appending a third body, and rejection after a body moves independently. The case passed 48 assertions. The four focused placement cases passed. The direct fixture run printed auxiliary-file extraction messages during native 3MF load, while all checked geometry, frame and material data reloaded successfully.
+
+The Windows Release app and test targets built successfully. Full CTest passed 388 of 396, with the same eight named failures and outcomes as the 395-test run on `4cb0f139b9`. The standalone suite passed 9 of 9. Local logs are under `build-phase0/p2-017-*.log`.
+
+In the rebuilt desktop app, batch import combined `base.step` and `joint.STP` into one 16 × 12 × 4 mm object. The Objects panel kept both body names. After assigning the joint to slot 2, **Add part → Load** appended `finger.step` at its CAD coordinates and preserved the joint assignment. The [offline Preview](assets/p2-017-step-components-preview.jpg) shows the slot 2 joint between the two slot 1 bodies across 20 layers. The preview used the generic offline H2D profile at 0.2 mm. The selected process preset showed the existing acceleration warning in Prepare, and offline slicing completed.
+
+P2-018 starts with an object-local, finite manual plane and a backward-compatible full-object default. P2-019 then uses the materials of two selected components to drive a planar transition.

@@ -25,6 +25,12 @@
 | P2-014 | Offline checks passed | Compare the H2D command contract and resolve the offline acceleration warning. | The [qualification report](test-results/P2-014-h2d-offline-qualification.md) records the source comparison and a tested companion process. A resolved vendor export for the target firmware is needed before native G-code qualification. |
 | P2-015 | Offline audit passed | Audit resolved Bambu Studio H2D exports against 3DSpectrum offline toolpaths. | Bambu Studio 02.09.01.70 exported both slot assignments on the 24 × 12 × 4 mm assembly. The offline regression passed. |
 | P2-016 | Offline checks passed | Verify the H2D reference pair with explicit motion and feature checks. | The [report](test-results/P2-015-h2d-vendor-export-audit.md) pins both file hashes and separates logical routing, tower extrusion and requested flush. The audit rejected four inputs with plate, routing, sequence or coordinate errors. |
+| P2-017 | Offline checks passed | Import separate STEP files into one assembly and append parts in a shared CAD frame. | Explicit shared-coordinate choice, independent names and filament slots, preservation across native 3MF, safe fallback when the assembly frame is ambiguous. |
+| P2-018 | Next | Add finite manual plane size, fit, and independent profile controls. | Exact width and height, resize handles, rotated object fit, full-object compatibility, bounded material effect, and native 3MF round trip. |
+| P2-019 | Planned | Select a shared planar interface by component pair and use their filament assignments. | Explicit opt-in, asymmetric band extents and curve profile, unchanged envelope, and reassignment after a component filament changes. |
+| P2-020 | Planned | Follow partial planar and curved CAD interfaces. | Validate contact geometry beyond bounds, test cylindrical and embedded contacts, and reject gaps and ambiguous overlaps. |
+| P2-021 | Planned | Save multiple independently configured interfaces in larger assemblies. | Three-body and repeated-material fixtures, deterministic overlap handling, and ordinary slicing for untouched contacts. |
+| P2-022 | Planned | Benchmark and improve assembly toolpaths. | Compare fraction error, short moves, continuity, footprint, cost, time, memory, and tool changes against the manual planar control. |
 | P3-001 | Gated | Qualify a specific printer, firmware, nozzle pair and transfer method. | Reviewed machine-specific G-code and human authorization precede motion. Physical results require inspected specimens. |
 
 ## P2-007 implementation plan
