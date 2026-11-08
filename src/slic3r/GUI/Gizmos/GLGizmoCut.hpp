@@ -113,6 +113,11 @@ class GLGizmoCut3D : public GLGizmoBase
     bool m_keep_upper{ true };
     bool m_keep_lower{ true };
     bool m_keep_as_parts{ false };
+    bool m_material_transition{ false };
+    bool m_load_material_transition{ false };
+    float m_transition_width_mm{ 8.f };
+    int m_upper_cut_filament{ 0 };
+    int m_lower_cut_filament{ 1 };
     bool m_place_on_cut_upper{ true };
     bool m_place_on_cut_lower{ false };
     bool m_rotate_upper{ false };
@@ -304,6 +309,7 @@ protected:
     bool render_angle_input(const std::string& label, float& in_val, const float& init_val, float min_val, float max_val);
     void render_snap_specific_input(const std::string& label, const wxString& tooltip, float& in_val, const float& init_val, const float min_val, const float max_val);
     void render_cut_plane_input_window(CutConnectors &connectors, float x, float y, float bottom_limit);
+    void render_material_transition_options();
     void init_input_window_data(CutConnectors &connectors);
     void render_input_window_warning() const;
     bool add_connector(CutConnectors&connectors, const Vec2d&mouse_position);
@@ -346,6 +352,7 @@ private:
     void render_connectors();
 
     bool can_perform_cut() const;
+    void apply_material_transition(const Selection& selection);
     bool has_valid_groove() const;
     bool has_valid_contour() const;
     void apply_connectors_in_model(ModelObject* mo, int &dowels_count);

@@ -2,6 +2,8 @@
 #include "Model.hpp"
 #include "MixedFilament.hpp"
 #include "Print.hpp"
+#include "PlanarGradient/PlanarRegions.hpp"
+#include "PlanarGradient/PlanarTransition.hpp"
 
 #include <boost/log/trivial.hpp>
 #include <algorithm>
@@ -738,7 +740,8 @@ static const ModelVolume *root_model_part_for_parent_region(const PrintObjectReg
 static bool mm_paint_applies_to_parent_region(const PrintObjectRegions::LayerRangeRegions &layer_range, int parent_region_id)
 {
     const ModelVolume *root_model_part = root_model_part_for_parent_region(layer_range, parent_region_id);
-    return root_model_part != nullptr && root_model_part->is_mm_painted();
+    return root_model_part != nullptr &&
+           (root_model_part->is_mm_painted() || PlanarGradient::has_region_option(*root_model_part->get_object()));
 }
 
 static PrintRegionConfig painted_region_config(const PrintRegionConfig &parent_config,
@@ -1626,6 +1629,10 @@ Print::ApplyStatus Print::apply(const Model &model, DynamicPrintConfig new_full_
                                           model_mmu_segmentation_data_changed(model_object, model_object_new) ||
                                           model_image_map_data_changed(model_object, model_object_new) ||
                                           (model_object_new.is_mm_painted() && num_extruders_changed) ||
+                                          PlanarGradient::region_option_changed(model_object, model_object_new) ||
+                                          PlanarGradient::transition_changed(model_object, model_object_new) ||
+                                          (num_extruders_changed && (PlanarGradient::has_region_option(model_object_new) ||
+                                                                     PlanarGradient::has_transition(model_object_new))) ||
                                           model_fuzzy_skin_data_changed(model_object, model_object_new);
         bool supports_differ            = model_volume_list_changed(model_object, model_object_new, ModelVolumeType::SUPPORT_BLOCKER) ||
                                           model_volume_list_changed(model_object, model_object_new, ModelVolumeType::SUPPORT_ENFORCER);
@@ -1952,6 +1959,10 @@ Print::ApplyStatus Print::apply(const Model &model, DynamicPrintConfig new_full_
                                              << " total_filaments=" << num_total_filaments;
                 }
             }
+        }
+        if (num_extruders == 2 && PlanarGradient::has_region_option(model_object)) {
+            append_unique_painted_extruder(painting_extruders, 1, num_extruders);
+            append_unique_painted_extruder(painting_extruders, 2, num_extruders);
         }
         if (model_object_status.print_object_regions_status == ModelObjectStatus::PrintObjectRegionsStatus::Valid) {
             // Verify that the trafo for regions & volume bounding boxes thus for regions is still applicable.

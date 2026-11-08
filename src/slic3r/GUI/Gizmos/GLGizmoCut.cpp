@@ -11,6 +11,8 @@
 #include "slic3r/GUI/format.hpp"
 #include "slic3r/Utils/UndoRedo.hpp"
 #include "libslic3r/AppConfig.hpp"
+#include "libslic3r/PlanarGradient/PlanarRegions.hpp"
+#include "libslic3r/PlanarGradient/PlanarTransition.hpp"
 #include "libslic3r/TriangleMeshSlicer.hpp"
 
 #include "imgui/imgui_internal.h"
@@ -252,7 +254,7 @@ std::string GLGizmoCut3D::get_tooltip() const
     }
 
     if (!m_dragging && m_hover_id == CutPlane) {
-        if (CutMode(m_mode) == CutMode::cutTongueAndGroove)
+        if (m_material_transition || CutMode(m_mode) == CutMode::cutTongueAndGroove)
             return _u8L("Click to flip the cut plane\n"
                         "Drag to move the cut plane");
         return _u8L("Click to flip the cut plane\n"
@@ -374,7 +376,7 @@ bool GLGizmoCut3D::on_mouse(const wxMouseEvent &mouse_event)
         return true;
     }
     else if (mouse_event.RightDown()) {
-        if (! m_connectors_editing && mouse_event.GetModifiers() == wxMOD_NONE &&
+        if (!m_material_transition && !m_connectors_editing && mouse_event.GetModifiers() == wxMOD_NONE &&
             CutMode(m_mode) == CutMode::cutPlanar) {
             // Check the internal part raycasters.
             if (! m_part_selection.valid())
@@ -937,6 +939,17 @@ void GLGizmoCut3D::render_cut_plane()
     shader->set_uniform("view_model_matrix", view_model_matrix);
     m_plane.model.render();
 
+    if (m_material_transition) {
+        for (const auto& side : {std::pair{-0.5, LOWER_PART_COLOR}, std::pair{0.5, UPPER_PART_COLOR}}) {
+            auto color = side.second;
+            color.a(0.23f);
+            m_plane.model.set_color(color);
+            const Vec3d offset(0., 0., side.first * m_transition_width_mm);
+            shader->set_uniform("view_model_matrix", view_model_matrix * translation_transform(offset));
+            m_plane.model.render();
+        }
+    }
+
     glsafe(::glEnable(GL_CULL_FACE));
     glsafe(::glDisable(GL_BLEND));
 
@@ -1264,6 +1277,11 @@ void GLGizmoCut3D::on_set_state()
 {
     if (m_state == On) {
         m_parent.set_use_color_clip_plane(true);
+        m_material_transition = false;
+        m_load_material_transition = true;
+        m_transition_width_mm = 8.f;
+        m_upper_cut_filament = 1;
+        m_lower_cut_filament = 0;
 
         update_bb();
         m_connectors_editing = !m_selected.empty();
@@ -2137,6 +2155,7 @@ void GLGizmoCut3D::PartSelection::turn_over_selection()
 
 void GLGizmoCut3D::on_render()
 {
+    m_parent.set_use_color_clip_plane(!m_material_transition);
     if (m_state == On) {
         // This gizmo is showing the object elevated. Tell the common
         // SelectionInfo object to lie about the actual shift.
@@ -2159,7 +2178,8 @@ void GLGizmoCut3D::on_render()
     else
         m_part_selection.render(&m_cut_normal, m_sphere.model);
 
-    render_clipper_cut();
+    if (!m_material_transition)
+        render_clipper_cut();
 
     if (!m_hide_cut_plane && !m_connectors_editing) {
         render_cut_plane();
@@ -2642,7 +2662,7 @@ void GLGizmoCut3D::render_cut_plane_input_window(CutConnectors &connectors, floa
     if (mode == CutMode::cutPlanar || mode == CutMode::cutTongueAndGroove) {
         const bool has_connectors = !connectors.empty();
 
-        m_imgui->disabled_begin(has_connectors);
+        m_imgui->disabled_begin(has_connectors || m_material_transition);
         if (render_cut_mode_combo())
             mode = CutMode(m_mode);
         m_imgui->disabled_end();
@@ -2650,9 +2670,12 @@ void GLGizmoCut3D::render_cut_plane_input_window(CutConnectors &connectors, floa
         render_build_size();
 
         ImGui::AlignTextToFramePadding();
-        m_imgui->text(_L("Cut position") + ": ");
+        m_imgui->text((m_material_transition ? _L("Plane position") : _L("Cut position")) + ": ");
         ImGui::SameLine();
-        render_move_center_input(Z);
+        Eigen::Index position_axis = Z;
+        if (m_material_transition)
+            m_rotation_m.linear().col(Z).cwiseAbs().maxCoeff(&position_axis);
+        render_move_center_input(int(position_axis));
         ImGui::SameLine();
 
         const bool is_cut_plane_init = m_rotation_m.isApprox(Transform3d::Identity()) && m_bb_center.isApprox(m_plane_center);
@@ -2669,7 +2692,8 @@ void GLGizmoCut3D::render_cut_plane_input_window(CutConnectors &connectors, floa
         if (mode == CutMode::cutPlanar) {
             add_vertical_scaled_interval(0.75f);
 
-            m_imgui->disabled_begin(!m_keep_upper || !m_keep_lower || m_keep_as_parts || (m_part_selection.valid() && m_part_selection.is_one_object()));
+            m_imgui->disabled_begin(m_material_transition || !m_keep_upper || !m_keep_lower || m_keep_as_parts ||
+                                    (m_part_selection.valid() && m_part_selection.is_one_object()));
                 if (m_imgui->button(has_connectors ? _L("Edit connectors") : _L("Add connectors")))
                     set_connectors_editing(true);
             m_imgui->disabled_end();
@@ -2697,8 +2721,11 @@ void GLGizmoCut3D::render_cut_plane_input_window(CutConnectors &connectors, floa
 
         ImGui::Separator();
 
-        // render "After Cut" section
+        if (mode == CutMode::cutPlanar && wxGetApp().plater()->printer_technology() == ptFFF)
+            render_material_transition_options();
+    }
 
+    if ((mode == CutMode::cutPlanar || mode == CutMode::cutTongueAndGroove) && !m_material_transition) {
         ImVec2 label_size;
         for (const wxString &label : {_L("Upper part"), _L("Lower part")}) {
             const ImVec2 text_size = ImGuiWrapper::calc_text_size(label);
@@ -2740,7 +2767,7 @@ void GLGizmoCut3D::render_cut_plane_input_window(CutConnectors &connectors, floa
         render_part_action_line(_L("Upper part"), "##upper", m_keep_upper, m_place_on_cut_upper, m_rotate_upper);
         render_part_action_line(_L("Lower part"), "##lower", m_keep_lower, m_place_on_cut_lower, m_rotate_lower);
 
-        m_imgui->disabled_begin(has_connectors || m_part_selection.valid() || mode == CutMode::cutTongueAndGroove);
+        m_imgui->disabled_begin(!connectors.empty() || m_part_selection.valid() || mode == CutMode::cutTongueAndGroove);
 
             if (m_part_selection.valid())
                 m_keep_as_parts = false;
@@ -2765,11 +2792,144 @@ void GLGizmoCut3D::render_cut_plane_input_window(CutConnectors &connectors, floa
 
     ImGui::SameLine();
     m_imgui->disabled_begin(!can_perform_cut());
-        if(m_imgui->button(_L("Perform cut")))
+    if (m_imgui->button(m_material_transition ? _L("Apply transition") : _L("Perform cut"))) {
+        if (m_material_transition)
+            apply_material_transition(m_parent.get_selection());
+        else
             perform_cut(m_parent.get_selection());
+    }
     m_imgui->disabled_end();
 
     ImGui::PopStyleVar(2);
+}
+
+void GLGizmoCut3D::render_material_transition_options()
+{
+    const auto& filaments = wxGetApp().preset_bundle->filament_presets;
+    ModelObject& object = *m_c->selection_info()->model_object();
+    wxString unavailable_reason;
+    if (filaments.size() < 2)
+        unavailable_reason = _L("Add a second filament in Prepare.");
+    else if (!object.cut_connectors.empty() || object.is_cut() || m_part_selection.valid())
+        unavailable_reason = _L("Use a plane without connectors or individually selected cut pieces.");
+    else if (object.instances.size() != 1 || object.volumes.empty() || object.volumes.size() > 2 ||
+             !std::all_of(object.volumes.begin(), object.volumes.end(), [](const ModelVolume* volume) { return volume->is_model_part(); }))
+        unavailable_reason = _L("Select one instance with one or two solid parts.");
+    else if (object.is_mm_painted() || object.is_fuzzy_skin_painted() || PlanarGradient::has_region_option(object))
+        unavailable_reason = _L("Use an object without material painting or experimental material regions.");
+
+    const bool available = unavailable_reason.empty();
+    if (!available)
+        m_material_transition = false;
+    m_imgui->disabled_begin(!available);
+    if (m_imgui->bbl_checkbox(_L("Material transition"), m_material_transition))
+        m_parent.request_extra_frame();
+    m_imgui->disabled_end();
+    if (!available && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+        ImGui::SetTooltip("%s", unavailable_reason.utf8_str().data());
+
+    if (PlanarGradient::has_transition(object)) {
+        ImGui::SameLine();
+        if (m_imgui->button(_L("Remove transition"))) {
+            Plater* plater = wxGetApp().plater();
+            m_parent.reset_all_gizmos();
+            Plater::TakeSnapshot snapshot(plater, _u8L("Remove material transition"));
+            object.config.erase(PlanarGradient::TRANSITION_OPTION);
+            m_material_transition = false;
+            plater->schedule_background_process();
+            return;
+        }
+    }
+    if (!m_material_transition)
+        return;
+
+    std::vector<std::string> options;
+    options.reserve(filaments.size());
+    for (size_t i = 0; i < filaments.size(); ++i)
+        options.push_back(std::to_string(i + 1) + "  " + filaments[i]);
+
+    if (m_upper_cut_filament >= int(options.size()) || m_lower_cut_filament >= int(options.size())) {
+        m_upper_cut_filament = 1;
+        m_lower_cut_filament = 0;
+    }
+    const wxString upper_label = _L("B · Positive side");
+    const wxString lower_label = _L("A · Negative side");
+    const float marker_size = ImGui::GetTextLineHeight();
+    const float picker_offset = marker_size + m_imgui->scaled(1.f) +
+        std::max(ImGuiWrapper::calc_text_size(upper_label).x, ImGuiWrapper::calc_text_size(lower_label).x);
+    auto render_picker = [&](const wxString& label, const std::string& id, const ColorRGBA& color, int& slot, int& other_slot) {
+        ImGui::AlignTextToFramePadding();
+        render_color_marker(marker_size, ImGuiWrapper::to_ImU32(color));
+        m_imgui->text(label);
+        ImGui::SameLine(picker_offset);
+        const int previous_slot = slot;
+        if (m_imgui->combo(id, options, slot, 0, 0.f, m_imgui->scaled(14.f)) && slot == other_slot)
+            other_slot = previous_slot;
+    };
+
+    m_imgui->text_wrapped(_L("The plane marks the 50/50 midpoint."), m_imgui->scaled(22.f));
+    ImGuiWrapper::push_combo_style(m_parent.get_scale());
+    render_picker(lower_label, "##lower_cut_filament", LOWER_PART_COLOR, m_lower_cut_filament, m_upper_cut_filament);
+    render_picker(upper_label, "##upper_cut_filament", UPPER_PART_COLOR, m_upper_cut_filament, m_lower_cut_filament);
+    ImGuiWrapper::pop_combo_style();
+    if (m_imgui->button(_L("Swap A and B")))
+        std::swap(m_lower_cut_filament, m_upper_cut_filament);
+
+    m_imgui->text(_L("Gradient direction"));
+    const char* axis_labels[] = {"X", "Y", "Z"};
+    for (int axis : {X, Y, Z}) {
+        ImGui::SameLine();
+        if (m_imgui->button(wxString::FromUTF8(axis_labels[axis]))) {
+            m_rotation_m = Transform3d(Eigen::Quaterniond::FromTwoVectors(Vec3d::UnitZ(), Vec3d(Vec3d::Unit(axis))));
+            m_start_dragging_m = m_rotation_m;
+            m_transformed_bounding_box = transformed_bounding_box(m_plane_center, m_rotation_m);
+            set_center(m_plane_center, true);
+            update_raycasters_for_picking();
+            m_parent.request_extra_frame();
+        }
+    }
+    if (object.volumes.size() == 2 && m_imgui->button(_L("Align to shared face"))) {
+        const Transform3d matrix = object.instances.front()->get_matrix();
+        if (const auto face = PlanarGradient::find_shared_planar_interface(object, matrix)) {
+            Plater::TakeSnapshot snapshot(wxGetApp().plater(), _u8L("Align transition plane"), UndoRedo::SnapshotType::GizmoAction);
+            const Vec3d normal = (matrix.linear().inverse().transpose() * face->normal).normalized();
+            const Vec3d center = matrix * face->point;
+            m_rotation_m = Transform3d(Eigen::Quaterniond::FromTwoVectors(Vec3d::UnitZ(), normal));
+            m_transformed_bounding_box = transformed_bounding_box(center, m_rotation_m);
+            set_center(center);
+            m_ar_plane_center = m_plane_center;
+            m_start_dragging_m = m_rotation_m;
+            update_raycasters_for_picking();
+            m_parent.request_extra_frame();
+        } else {
+            MessageDialog dialog(wxGetApp().plater(),
+                _L("The two parts need to touch across a complete flat face to align the transition plane."),
+                _L("No shared face found"), wxOK | wxICON_INFORMATION);
+            dialog.ShowModal();
+        }
+    }
+
+    m_imgui->text(_L("Transition width"));
+    const float maximum = std::max({10.f, float(std::ceil(2. * m_transformed_bounding_box.size().z())), m_transition_width_mm});
+    ImGui::SetNextItemWidth(m_imgui->scaled(15.f));
+    bool width_changed = ImGui::SliderFloat("##transition_width", &m_transition_width_mm, 0.1f, maximum, "%.2f mm",
+                                          ImGuiSliderFlags_AlwaysClamp);
+    ImGui::SameLine();
+    ImGui::SetNextItemWidth(m_imgui->scaled(6.f));
+    float exact = m_transition_width_mm;
+    if (ImGui::InputFloat("##transition_width_mm", &exact, 0.f, 0.f, "%.2f", ImGuiInputTextFlags_EnterReturnsTrue) &&
+        std::isfinite(exact) && exact > 0.f) {
+        m_transition_width_mm = exact;
+        width_changed = true;
+    }
+    m_imgui->text(_L("Sharper"));
+    ImGui::SameLine(m_imgui->scaled(13.f));
+    m_imgui->text(_L("More gradual"));
+    if (width_changed)
+        m_parent.request_extra_frame();
+    const double half_width = m_transition_width_mm * 0.5;
+    if (m_transformed_bounding_box.min.z() > -half_width || m_transformed_bounding_box.max.z() < half_width)
+        m_imgui->text_wrapped(_L("A band edge extends beyond the model."), m_imgui->scaled(22.f));
 }
 
 void GLGizmoCut3D::validate_connector_settings()
@@ -2884,9 +3044,9 @@ void GLGizmoCut3D::render_input_window_warning() const
             out += "\n - " + _L("Some connectors are overlapped");
         m_imgui->text(out);
     }
-    if (!m_keep_upper && !m_keep_lower)
+    if (!m_material_transition && !m_keep_upper && !m_keep_lower)
         m_imgui->text(/*wxString(ImGui::WarningMarkerSmall)*/ _L("Warning") + ": " + _L("Select at least one object to keep after cutting."));
-    if (!has_valid_contour())
+    if (m_material_transition ? !can_perform_cut() : !has_valid_contour())
         m_imgui->text(/*wxString(ImGui::WarningMarkerSmall)*/ _L("Warning") + ": " + _L("Cut plane is placed out of object"));
     else if (!has_valid_groove())
         m_imgui->text(/*wxString(ImGui::WarningMarkerSmall)*/ _L("Warning") + ": " + _L("Cut plane with groove is invalid"));
@@ -2894,11 +3054,36 @@ void GLGizmoCut3D::render_input_window_warning() const
 
 void GLGizmoCut3D::on_render_input_window(float x, float y, float bottom_limit)
 {
-    GizmoImguiSetNextWIndowPos(x, y, ImGuiCond_Always, 0.0f, 0.0f);
+    const float display_width = ImGui::GetIO().DisplaySize.x;
+    const float panel_width = std::max(last_input_window_width, m_imgui->scaled(24.f));
+    x = std::max(0.f, display_width - panel_width - m_imgui->scaled(0.65f));
+    m_imgui->set_next_window_pos(x, y, ImGuiCond_Always);
     ImGuiWrapper::push_toolbar_style(m_parent.get_scale());
     GizmoImguiBegin(get_name(), ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoTitleBar);
 
-    CutConnectors& connectors = m_c->selection_info()->model_object()->cut_connectors;
+    ModelObject& object = *m_c->selection_info()->model_object();
+    if (m_load_material_transition) {
+        // The manager populates the shared selection and clipper after opening the gizmo.
+        m_load_material_transition = false;
+        if (const auto transition = PlanarGradient::read_transition(object); transition && object.instances.size() == 1) {
+            const Transform3d matrix = object.instances.front()->get_matrix();
+            const Vec3d normal = (matrix.linear().inverse().transpose() * transition->normal).normalized();
+            m_rotation_m = Transform3d(Eigen::Quaterniond::FromTwoVectors(Vec3d::UnitZ(), normal));
+            m_transition_width_mm = float(transition->width);
+            m_lower_cut_filament = int(transition->filaments[0]) - 1;
+            m_upper_cut_filament = int(transition->filaments[1]) - 1;
+            m_material_transition = true;
+            switch_to_mode(size_t(CutMode::cutPlanar));
+            const Vec3d center = matrix * transition->point;
+            m_transformed_bounding_box = transformed_bounding_box(center, m_rotation_m);
+            set_center(center);
+            m_ar_plane_center = m_plane_center;
+            m_start_dragging_m = m_rotation_m;
+            m_parent.request_extra_frame();
+        }
+    }
+
+    CutConnectors& connectors = object.cut_connectors;
 
     init_input_window_data(connectors);
 
@@ -3154,6 +3339,14 @@ void GLGizmoCut3D::render_connectors()
 
 bool GLGizmoCut3D::can_perform_cut() const
 {
+    if (m_material_transition)
+        return m_transformed_bounding_box.min.z() < 0. && m_transformed_bounding_box.max.z() > 0. && !m_connectors_editing;
+
+    const auto& selection = m_parent.get_selection();
+    const int object_idx = selection.get_object_idx();
+    if (object_idx >= 0 && PlanarGradient::has_transition(*selection.get_model()->objects[object_idx]))
+        return false;
+
     if (! m_invalid_connectors_idxs.empty() || (!m_keep_upper && !m_keep_lower) || m_connectors_editing)
         return false;
 
@@ -3303,6 +3496,27 @@ void synchronize_model_after_cut(Model& model, const CutObjectBase& cut_id)
     for (ModelObject* obj : model.objects)
         if (obj->is_cut() && obj->cut_id.has_same_id(cut_id) && !obj->cut_id.is_equal(cut_id))
             obj->cut_id.copy(cut_id);
+}
+
+void GLGizmoCut3D::apply_material_transition(const Selection& selection)
+{
+    const int object_idx = selection.get_object_idx();
+    const int instance_idx = selection.get_instance_idx();
+    wxCHECK_RET(object_idx >= 0 && instance_idx >= 0, "GLGizmoCut: Invalid object selection");
+
+    Plater* plater = wxGetApp().plater();
+    ModelObject* object = plater->model().objects[object_idx];
+    const Transform3d matrix = object->instances[instance_idx]->get_matrix();
+    const PlanarGradient::Transition transition{
+        matrix.inverse() * m_plane_center,
+        (matrix.linear().transpose() * m_rotation_m.linear() * Vec3d::UnitZ()).normalized(),
+        m_transition_width_mm,
+        {unsigned(m_lower_cut_filament + 1), unsigned(m_upper_cut_filament + 1)}};
+
+    m_parent.reset_all_gizmos();
+    Plater::TakeSnapshot snapshot(plater, _u8L("Apply material transition"));
+    object->config.set_key_value(PlanarGradient::TRANSITION_OPTION, new ConfigOptionFloats(transition.serialize()));
+    plater->schedule_background_process();
 }
 
 void GLGizmoCut3D::perform_cut(const Selection& selection)

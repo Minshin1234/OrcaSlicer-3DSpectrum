@@ -188,7 +188,10 @@ static void process_solid_part_cut(ModelVolume* volume, const Transform3d& insta
     // Add required cut parts to the objects
 
     if (attributes.has(ModelObjectCutAttribute::KeepAsParts)) {
-        add_cut_volume(upper_mesh, upper, volume, cut_matrix, "_A");
+        if (!upper_mesh.empty()) {
+            add_cut_volume(upper_mesh, upper, volume, cut_matrix, "_A");
+            upper->volumes.back()->cut_info.is_from_upper = true;
+        }
         if (!lower_mesh.empty()) {
             add_cut_volume(lower_mesh, upper, volume, cut_matrix, "_B");
             upper->volumes.back()->cut_info.is_from_upper = false;
@@ -381,6 +384,29 @@ const ModelObjectPtrs& Cut::perform_with_plane()
     finalize(cut_object_ptrs);
 
     return m_model.objects;
+}
+
+bool assign_planar_cut_filaments(ModelObject& object, int upper_filament, int lower_filament)
+{
+    if (upper_filament <= 0 || lower_filament <= 0 || upper_filament == lower_filament)
+        return false;
+
+    bool has_upper = false;
+    bool has_lower = false;
+    for (const ModelVolume* volume : object.volumes) {
+        if (volume->is_model_part() && !volume->mesh().empty()) {
+            has_upper |= volume->is_from_upper();
+            has_lower |= !volume->is_from_upper();
+        }
+    }
+    if (!has_upper || !has_lower)
+        return false;
+
+    for (ModelVolume* volume : object.volumes) {
+        if (volume->is_model_part() && !volume->mesh().empty())
+            volume->config.set_key_value("extruder", new ConfigOptionInt(volume->is_from_upper() ? upper_filament : lower_filament));
+    }
+    return true;
 }
 
 static void distribute_modifiers_from_object(ModelObject* from_obj, const int instance_idx, ModelObject* to_obj1, ModelObject* to_obj2)

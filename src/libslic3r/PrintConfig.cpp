@@ -1,4 +1,6 @@
 #include "PrintConfig.hpp"
+#include "PlanarGradient/PlanarRegions.hpp"
+#include "PlanarGradient/PlanarTransition.hpp"
 #include "ProjectSchemaVersion.hpp"
 #include "ClipperUtils.hpp"
 #include "Config.hpp"
@@ -507,6 +509,14 @@ PrintConfigDef::PrintConfigDef()
     assign_printer_technology_to_unknown(this->options, ptFFF);
     this->init_sla_params();
     assign_printer_technology_to_unknown(this->options, ptSLA);
+
+    // Append to preserve the existing config option serialization ordinals.
+    auto* planar_regions = this->add(PlanarGradient::REGION_OPTION, coFloats);
+    planar_regions->printer_technology = ptFFF;
+    planar_regions->set_default_value(new ConfigOptionFloats());
+    auto* planar_transition = this->add(PlanarGradient::TRANSITION_OPTION, coFloats);
+    planar_transition->printer_technology = ptFFF;
+    planar_transition->set_default_value(new ConfigOptionFloats());
 }
 
 void PrintConfigDef::init_common_params()

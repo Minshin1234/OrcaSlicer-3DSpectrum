@@ -1,5 +1,8 @@
 #include <catch2/catch_test_macros.hpp>
+#include <catch2/catch_approx.hpp>
 
+#include "libslic3r/CutUtils.hpp"
+#include "libslic3r/Geometry.hpp"
 #include "libslic3r/libslic3r.h"
 #include "libslic3r/Model.hpp"
 #include "libslic3r/ModelArrange.hpp"
@@ -59,4 +62,79 @@ SCENARIO("Model construction", "[Model]") {
 			}
         }
     }
+}
+
+TEST_CASE("A planar material split keeps both parts in place and assigns their filament slots", "[Model][cut]")
+{
+    Model model;
+    ModelObject* object = model.add_object();
+    ModelVolume* source = object->add_volume(make_cube(20, 20, 20));
+    source->config.set_key_value("extruder", new ConfigOptionInt(1));
+    ModelInstance* instance = object->add_instance();
+    instance->set_offset(Vec3d(45., 60., 0.));
+    const BoundingBoxf3 original_bounds = object->instance_bounding_box(0);
+
+    SECTION("The two solids share the selected boundary")
+    {
+        const double plane_z = original_bounds.min.z() + 7.;
+        Cut cut(object, 0, Geometry::translation_transform(Vec3d(0., 0., plane_z)));
+        const auto& parts = cut.perform_with_plane();
+        REQUIRE(parts.size() == 1);
+        REQUIRE(parts.front()->volumes.size() == 2);
+        REQUIRE_FALSE(assign_planar_cut_filaments(*parts.front(), 2, 2));
+        for (const ModelVolume* volume : parts.front()->volumes)
+            CHECK(volume->extruder_id() == 1);
+        REQUIRE(assign_planar_cut_filaments(*parts.front(), 2, 1));
+
+        const auto bounds = parts.front()->instance_bounding_box(0);
+        CHECK(bounds.min.isApprox(original_bounds.min));
+        CHECK(bounds.max.isApprox(original_bounds.max));
+        for (const ModelVolume* volume : parts.front()->volumes) {
+            const auto matrix = parts.front()->instances.front()->get_matrix() * volume->get_matrix();
+            const auto part_bounds = volume->mesh().transformed_bounding_box(matrix);
+            if (volume->is_from_upper()) {
+                CHECK(volume->extruder_id() == 2);
+                CHECK(part_bounds.min.z() == Catch::Approx(plane_z));
+            } else {
+                CHECK(volume->extruder_id() == 1);
+                CHECK(part_bounds.max.z() == Catch::Approx(plane_z));
+            }
+        }
+    }
+
+    SECTION("The split follows a tilted plane")
+    {
+        Transform3d plane = Geometry::translation_transform(original_bounds.center() - instance->get_offset());
+        plane.rotate(Eigen::AngleAxisd(0.35, Vec3d::UnitY()));
+        Cut cut(object, 0, plane);
+        const auto& parts = cut.perform_with_plane();
+        REQUIRE(parts.size() == 1);
+        REQUIRE(parts.front()->volumes.size() == 2);
+        REQUIRE(assign_planar_cut_filaments(*parts.front(), 1, 2));
+
+        const auto bounds = parts.front()->instance_bounding_box(0);
+        CHECK((bounds.min - original_bounds.min).norm() < 1e-5);
+        CHECK((bounds.max - original_bounds.max).norm() < 1e-5);
+        for (const ModelVolume* volume : parts.front()->volumes) {
+            const Transform3d to_plane = plane.inverse() * volume->get_matrix();
+            const auto part_bounds = volume->mesh().transformed_bounding_box(to_plane);
+            if (volume->is_from_upper())
+                CHECK(part_bounds.min.z() == Catch::Approx(0.).margin(1e-5));
+            else
+                CHECK(part_bounds.max.z() == Catch::Approx(0.).margin(1e-5));
+        }
+    }
+
+    SECTION("A plane that misses the solid cannot replace the source")
+    {
+        Cut cut(object, 0, Geometry::translation_transform(Vec3d(0., 0., original_bounds.max.z() + 5.)));
+        const auto& parts = cut.perform_with_plane();
+        REQUIRE(parts.size() == 1);
+        REQUIRE_FALSE(assign_planar_cut_filaments(*parts.front(), 2, 1));
+        REQUIRE(parts.front()->volumes.size() == 1);
+        CHECK(parts.front()->volumes.front()->extruder_id() == 1);
+    }
+
+    REQUIRE(object->volumes.size() == 1);
+    CHECK(source->extruder_id() == 1);
 }

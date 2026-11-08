@@ -20,6 +20,7 @@
 #include "MixedFilament.hpp"
 #include "MixedFilament/PerimeterModulation.hpp"
 #include "Print.hpp"
+#include "PlanarGradient/PlanarTransition.hpp"
 #include "Utils.hpp"
 #include "ClipperUtils.hpp"
 #include "libslic3r.h"
@@ -5217,6 +5218,9 @@ LayerResult GCode::process_layer(const Print& print,
             const Layer& layer = *layer_to_print.object_layer;
             const PrintObject* cadence_print_object =
                 layer_to_print.original_object != nullptr ? layer_to_print.original_object : layer_to_print.object();
+            std::optional<PlanarGradient::LayerTransition> planar_transition;
+            if (const auto transition = PlanarGradient::read_transition(*cadence_print_object->model_object()))
+                planar_transition.emplace(*cadence_print_object, layer, *transition);
             const std::optional<unsigned int> synchronized_object_extruder =
                 cadence_print_object != nullptr && cadence_print_object->model_object() != nullptr &&
                         layer_tools.mixed_mgr != nullptr && layer_tools.num_physical > 0 ?
@@ -5308,6 +5312,39 @@ LayerResult GCode::process_layer(const Print& print,
                         const auto* extrusions = static_cast<const ExtrusionEntityCollection*>(ee);
                         if (extrusions->entities.empty()) // This shouldn't happen but first_point() would fail.
                             continue;
+
+                        if (planar_transition) {
+                            auto append_for_material = [&](size_t material, const ExtrusionEntityCollection* paths) {
+                                const unsigned int extruder = planar_transition->filaments()[material] - 1;
+                                auto& islands = object_islands_by_extruder(by_extruder, extruder, layer_to_print_idx, layers.size(), n_slices + 1);
+                                size_t island_idx = n_slices;
+                                for (const size_t i : slices_test_order)
+                                    if (entity_matches_surface(i, *extrusions)) {
+                                        island_idx = i;
+                                        break;
+                                    }
+                                auto& by_region = islands[island_idx].by_region;
+                                if (by_region.empty())
+                                    by_region.resize(print.num_print_regions());
+                                by_region[region.print_region_id()].append(entity_type, paths, nullptr);
+                            };
+                            if (const auto pure = planar_transition->pure_material()) {
+                                append_for_material(*pure, extrusions);
+                            } else {
+                                auto a = std::make_unique<ExtrusionEntityCollection>();
+                                auto b = std::make_unique<ExtrusionEntityCollection>();
+                                planar_transition->partition(*extrusions, *a, *b);
+                                if (!a->empty()) {
+                                    append_for_material(0, a.get());
+                                    local_z_clipped_collections.emplace_back(std::move(a));
+                                }
+                                if (!b->empty()) {
+                                    append_for_material(1, b.get());
+                                    local_z_clipped_collections.emplace_back(std::move(b));
+                                }
+                            }
+                            continue;
+                        }
 
                         const ExtrusionEntityCollection* filtered_extrusions = extrusions;
                         const bool local_z_entity_enabled =

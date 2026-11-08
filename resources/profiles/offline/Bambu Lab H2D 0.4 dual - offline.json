@@ -1,0 +1,18 @@
+{
+    "type": "machine",
+    "name": "Bambu Lab H2D 0.4 dual - OFFLINE ONLY",
+    "from": "user",
+    "instantiation": "false",
+    "description": "Offline two-tool geometry overlay. Generic G-code only. Do not send generated files to a printer.",
+    "printer_model": "H2D offline geometry",
+    "printer_variant": "0.4",
+    "printable_area": ["25x0", "325x0", "325x320", "25x320"],
+    "printable_height": "325",
+    "nozzle_diameter": ["0.4", "0.4"],
+    "single_extruder_multi_material": "0",
+    "gcode_flavor": "marlin",
+    "emit_machine_limits_to_gcode": "0",
+    "machine_start_gcode": "; H2D OFFLINE ONLY - DO NOT PRINT",
+    "machine_end_gcode": "",
+    "change_filament_gcode": ""
+}

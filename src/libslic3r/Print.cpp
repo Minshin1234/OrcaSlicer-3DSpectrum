@@ -1,6 +1,7 @@
 #include "Config.hpp"
 #include "Exception.hpp"
 #include "Print.hpp"
+#include "PlanarGradient/PlanarTransition.hpp"
 #include "BoundingBox.hpp"
 #include "Brim.hpp"
 #include "ClipperUtils.hpp"
@@ -909,6 +910,7 @@ std::vector<unsigned int> Print::object_extruders() const
         	region.collect_object_printing_extruders(*this, extruders);
 
     for (const PrintObject* object : m_objects) {
+        PlanarGradient::collect_transition_extruders(*object, extruders);
         const ModelObject* mo = object->model_object();
         for (const ModelVolume* mv : mo->volumes) {
             std::vector<int> volume_extruders = mv->get_extruders();

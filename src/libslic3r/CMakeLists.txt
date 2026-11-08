@@ -418,6 +418,10 @@ set(lisbslic3r_sources
     Print.hpp
     PrintObject.cpp
     PrintObjectSlice.cpp
+    PlanarGradient/OrderedCells.cpp
+    PlanarGradient/PlanarFraction.cpp
+    PlanarGradient/PlanarRegions.cpp
+    PlanarGradient/PlanarTransition.cpp
     PrintRegion.cpp
     ProjectSchemaVersion.cpp
     ProjectSchemaVersion.hpp

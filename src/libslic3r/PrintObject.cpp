@@ -1,5 +1,6 @@
 #include "Exception.hpp"
 #include "Print.hpp"
+#include "PlanarGradient/PlanarTransition.hpp"
 #include "BoundingBox.hpp"
 #include "ClipperUtils.hpp"
 #include "ElephantFootCompensation.hpp"
@@ -3297,6 +3298,7 @@ std::vector<unsigned int> PrintObject::object_extruders() const
 {
     std::vector<unsigned int> extruders;
     extruders.reserve(this->all_regions().size() * 3);
+    PlanarGradient::collect_transition_extruders(*this, extruders);
 
     //Orca: Collect extruders from all regions.
     for (const PrintRegion &region : this->all_regions())

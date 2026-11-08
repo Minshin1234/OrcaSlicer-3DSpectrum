@@ -61,6 +61,10 @@ public:
 
 }; // namespace Cut
 
+// Assign physical filament slots to the two sides of a planar cut kept as parts.
+// Leave the object unchanged if the slots are invalid or either side has no solid part.
+bool assign_planar_cut_filaments(ModelObject& object, int upper_filament, int lower_filament);
+
 } // namespace Slic3r
 
 #endif /* slic3r_CutUtils_hpp_ */

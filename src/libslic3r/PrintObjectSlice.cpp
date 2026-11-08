@@ -20,6 +20,8 @@
 #include "MixedFilament.hpp"
 #include "MultiMaterialSegmentation.hpp"
 #include "Print.hpp"
+#include "PlanarGradient/PlanarRegions.hpp"
+#include "PlanarGradient/PlanarTransition.hpp"
 #include "SVG.hpp"
 //BBS
 #include "ShortestPath.hpp"
@@ -5556,6 +5558,8 @@ void PrintObject::slice_volumes()
     m_print->throw_if_canceled();
 
     this->apply_conical_overhang();
+    PlanarGradient::validate_transition(*this);
+    PlanarGradient::apply_regions(*this, throw_on_cancel_callback);
     std::vector<uint8_t>       adaptive_independent_local_z_rows;
     double                     adaptive_full_resolution_height_mm = 0.;
     const std::vector<uint8_t> local_z_enabled_rows =

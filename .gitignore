@@ -45,6 +45,7 @@ nul
 .codex_tmp
 .hermes/
 CLAUDE.md
+!/CLAUDE.md
 sandboxes
 **/__pycache__/
 *.pyc

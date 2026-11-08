@@ -10,6 +10,7 @@ add_executable(${_TEST_NAME}_tests
 	test_gcodewriter.cpp
 	test_model.cpp
 	test_print.cpp
+	test_planar_routing.cpp
 	test_printgcode.cpp
 	test_printobject.cpp
 	test_skirt_brim.cpp
@@ -17,6 +18,7 @@ add_executable(${_TEST_NAME}_tests
 	test_bed_temperature.cpp
 	test_trianglemesh.cpp
 	)
+target_include_directories(${_TEST_NAME}_tests PRIVATE ../../src/libslic3r/PlanarGradient)
 find_package(JPEG REQUIRED)
 find_package(PNG REQUIRED)
 find_package(ZLIB REQUIRED)

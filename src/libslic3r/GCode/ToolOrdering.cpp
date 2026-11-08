@@ -1,5 +1,6 @@
 #include "ExtrusionEntity.hpp"
 #include "Print.hpp"
+#include "PlanarGradient/PlanarTransition.hpp"
 #include "ToolOrdering.hpp"
 #include "Layer.hpp"
 #include "ClipperUtils.hpp"
@@ -717,6 +718,7 @@ void ToolOrdering::collect_extruders(const PrintObject &object, const std::vecto
     int layerCount = 0;
     std::vector<int> firstLayerExtruders;
     firstLayerExtruders.clear();
+    const auto transition = PlanarGradient::read_transition(*object.model_object());
 
     // Collect the object extruders.
     for (auto layer : object.layers()) {
@@ -741,6 +743,25 @@ void ToolOrdering::collect_extruders(const PrintObject &object, const std::vecto
 
         // Store the current extruder override (set to zero if no overriden), so that layer_tools.wiping_extrusions().is_overridable_and_mark() will use it.
         layer_tools.extruder_override = extruder_override;
+
+        if (transition && std::any_of(layer->regions().begin(), layer->regions().end(),
+                                      [](const LayerRegion* region) { return region->has_extrusions(); })) {
+            const PlanarGradient::LayerTransition routing(object, *layer, *transition);
+            const auto pure = routing.pure_material();
+            // The export may simplify paths after scheduling, so reserve both slots wherever
+            // the layer could contain both materials.
+            for (size_t material = 0; material < routing.filaments().size(); ++material) {
+                if (pure && *pure != material)
+                    continue;
+                const unsigned int slot = routing.filaments()[material];
+                layer_tools.extruders.push_back(slot);
+                if (layerCount == 0)
+                    firstLayerExtruders.push_back(int(slot));
+            }
+            layer_tools.has_object = true;
+            ++layerCount;
+            continue;
+        }
 
         // What extruders are required to print this object layer?
         for (const LayerRegion *layerm : layer->regions()) {
