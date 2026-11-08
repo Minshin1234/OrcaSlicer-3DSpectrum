@@ -20,7 +20,7 @@ In P2-014 and P2-015, the offline acceleration preset was verified and the resol
 
 ## Next action
 
-P2-015 is on `codex/p2-015-h2d-vendor-audit`. The [audit report](test-results/P2-015-h2d-vendor-export-audit.md) records the tool mapping (`T0/T1 H-1`), coordinate bounds, macro contract (`M620`/`M621`/`G150.1`), and purge budget. The automated regression case passed.
+P2-015 is on `codex/p2-015-h2d-vendor-audit` (`5ed8d4322d`). The [audit report](test-results/P2-015-h2d-vendor-export-audit.md) records the tool mapping (`T0/T1 H-1`), coordinate bounds, macro contract (`M620`/`M621`/`G150.1`), and purge budget. The automated regression case passed.
 
 P2-014 is on `codex/p2-014-h2d-offline-qualification`. The [qualification report](test-results/P2-014-h2d-offline-qualification.md) records the pinned vendor contract and the tested process preset that clears the offline warning.
 
